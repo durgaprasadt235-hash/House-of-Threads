@@ -44,7 +44,7 @@ Do not run migration or seed commands until valid Neon URLs are present. `.env.l
 | --- | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | 1 | Canonical application URL |
 | `DATABASE_URL` | 2 | Neon pooled runtime connection |
-| `DIRECT_URL` | 2 | Neon direct migration connection |
+| `DATABASE_URL_UNPOOLED` | 2 | Neon direct migration connection |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | 4 | Clerk browser key |
 | `CLERK_SECRET_KEY` | 4 | Clerk server key |
 | `STRIPE_SECRET_KEY` | 5 | Stripe server API key |
@@ -59,7 +59,7 @@ Do not run migration or seed commands until valid Neon URLs are present. `.env.l
 ## Neon and Prisma
 
 1. Create a Neon project, ideally through the Vercel Marketplace integration.
-2. Put the pooled connection string in `DATABASE_URL` and the direct connection string in `DIRECT_URL`.
+2. Put the pooled connection string in `DATABASE_URL` and the direct connection string in `DATABASE_URL_UNPOOLED`. Vercel's Neon integration provisions both automatically.
 3. Run `npm run db:generate`.
 4. For a development schema change, run `npm run db:migrate -- --name descriptive_name`.
 5. Seed the two brands with `npm run db:seed`.
