@@ -117,9 +117,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand-logo img { object-fit: cover; mix-blend-mode: screen; }
 .brand-logo-elphino img { object-position: 50% 53%; transform: scale(1.35); }
 .brand-logo-walker img { object-position: 50% 48%; }
-.brand-logo-compact { width: 230px; height: 76px; }
-.brand-logo-compact.brand-logo-elphino img { object-position: 50% 53%; }
-.brand-logo-compact.brand-logo-walker { width: 250px; height: 94px; margin-block: -9px; }
+.brand-logo-compact { width: 220px; height: 104px; }
+.brand-logo-compact.brand-logo-elphino img { object-position: 50% 53%; transform: scale(1); }
+.brand-logo-compact.brand-logo-walker { width: 238px; height: 118px; margin-block: -7px; }
 .brand-logo-compact.brand-logo-walker img { object-position: 50% 47%; }
 
 @keyframes image-reveal { from { opacity: 0; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
