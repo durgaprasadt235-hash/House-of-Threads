@@ -8,11 +8,11 @@ type BrandLogoProps = {
 const logos = {
   elphino: {
     label: "Elphino",
-    src: "/images/brands/elphino-logo.png",
+    src: "/images/brands/elphino-logo-transparent-v2.png",
   },
   walker: {
     label: "The Walker Company",
-    src: "/images/brands/walker-company-logo.png",
+    src: "/images/brands/walker-company-logo-transparent-v2.png",
   },
 };
 
