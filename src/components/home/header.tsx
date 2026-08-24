@@ -7,14 +7,14 @@ import { useEffect, useState } from "react";
 import { Monogram } from "@/components/home/monogram";
 
 const navigation = [
-  { label: "Men", href: "#brands" },
-  { label: "Collections", href: "#collections" },
-  { label: "Elphino", href: "#elphino" },
-  { label: "The Walker Company", href: "#walker" },
-  { label: "Stories", href: "#stories" },
+  { label: "Men", href: "/#brands" },
+  { label: "Collections", href: "/elphino/collections" },
+  { label: "Elphino", href: "/#elphino" },
+  { label: "The Walker Company", href: "/#walker" },
+  { label: "Stories", href: "/#stories" },
 ];
 
-export function Header() {
+export function Header({ active }: { active?: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -39,7 +39,7 @@ export function Header() {
       <div className="mx-auto flex h-[78px] max-w-[1600px] items-center px-5 sm:px-8 lg:h-[92px] lg:px-12">
         <Monogram compact />
         <nav aria-label="Primary navigation" className="ml-10 hidden h-full items-center gap-8 lg:flex xl:ml-14 xl:gap-11">
-          {navigation.map((item) => <Link className="nav-link" href={item.href} key={item.label}>{item.label}</Link>)}
+          {navigation.map((item) => <Link aria-current={active === item.label ? "page" : undefined} className={`nav-link ${active === item.label ? "nav-link-active" : ""}`} href={item.href} key={item.label}>{item.label}</Link>)}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3">
           <IconButton label="Search"><Search /></IconButton>
@@ -56,7 +56,7 @@ export function Header() {
       </div>
       <div className={`overflow-hidden transition-[max-height,opacity] duration-500 lg:hidden ${menuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}`}>
         <nav aria-label="Mobile navigation" className="border-t border-white/10 px-6 py-5">
-          {navigation.map((item) => <Link className="block border-b border-white/8 py-3 text-xs font-medium uppercase tracking-[0.2em] text-white/85" href={item.href} key={item.label} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+          {navigation.map((item) => <Link aria-current={active === item.label ? "page" : undefined} className={`block border-b border-white/8 py-3 text-xs font-medium uppercase tracking-[0.2em] ${active === item.label ? "text-[#e9b85f]" : "text-white/85"}`} href={item.href} key={item.label} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
         </nav>
       </div>
     </header>
