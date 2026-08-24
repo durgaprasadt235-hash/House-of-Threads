@@ -30,11 +30,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# environment files and secrets
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# local editor files (shared recommendations remain tracked)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
 
 # typescript
 *.tsbuildinfo

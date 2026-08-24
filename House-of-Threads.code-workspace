@@ -1,0 +1,11 @@
+{
+  "folders": [
+    {
+      "name": "House of Threads",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib"
+  }
+}

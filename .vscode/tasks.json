@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "House of Threads: dev",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch"
+    },
+    {
+      "label": "House of Threads: verify",
+      "type": "shell",
+      "command": "npm run lint && npm run typecheck && npm run build",
+      "problemMatcher": ["$eslint-stylish", "$tsc"]
+    }
+  ]
+}
