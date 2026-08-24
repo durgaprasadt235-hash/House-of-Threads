@@ -123,6 +123,110 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .brand-logo-compact { width: 220px; height: 104px; }
 .brand-logo-compact.brand-logo-walker { width: 238px; height: 118px; margin-block: -7px; }
+.elphino-logo-trigger,
+.elphino-logo-body,
+.elphino-trunk-layer,
+.elphino-water {
+  position: absolute;
+  inset: 0;
+}
+.elphino-logo-trigger {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
+.elphino-logo-trigger:focus-visible {
+  border-radius: 4px;
+  outline: 1px solid #58dce1;
+  outline-offset: 3px;
+}
+.elphino-logo-body { transition: transform 180ms ease; }
+.elphino-trunk-layer {
+  z-index: 1;
+  clip-path: polygon(54% 4%, 78% 4%, 78% 67%, 56% 67%);
+  transform-origin: 63% 48%;
+}
+.elphino-water {
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+}
+.elphino-drop {
+  position: absolute;
+  left: 66%;
+  top: 15%;
+  width: 5px;
+  height: 9px;
+  border-radius: 70% 45% 70% 45%;
+  background: #38d9f0;
+  box-shadow: 0 0 7px rgb(56 217 240 / 75%);
+  opacity: 0;
+}
+.elphino-drop-2 { background: #3aa7ff; }
+.elphino-drop-3 { background: #7ce7d5; }
+.elphino-drop-4 { background: #51c8ff; }
+.elphino-drop-5 { background: #b4f4ff; }
+.brand-logo-elphino:hover .elphino-logo-body,
+.brand-logo-elphino:focus-within .elphino-logo-body,
+.brand-logo-elphino.brand-logo-playing .elphino-logo-body {
+  animation: elphino-happy-bounce 720ms ease-in-out 1;
+}
+.brand-logo-elphino:hover .elphino-trunk-layer,
+.brand-logo-elphino:focus-within .elphino-trunk-layer,
+.brand-logo-elphino.brand-logo-playing .elphino-trunk-layer {
+  animation: elphino-trunk-shake 780ms ease-in-out 2;
+}
+.brand-logo-elphino:hover .elphino-water,
+.brand-logo-elphino:focus-within .elphino-water,
+.brand-logo-elphino.brand-logo-playing .elphino-water {
+  animation: elphino-water-show 1.35s ease-out 1;
+}
+.brand-logo-elphino:hover .elphino-drop,
+.brand-logo-elphino:focus-within .elphino-drop,
+.brand-logo-elphino.brand-logo-playing .elphino-drop {
+  animation: elphino-water-drop 900ms cubic-bezier(.2,.7,.3,1) 1 both;
+}
+.brand-logo-elphino:hover .elphino-drop-2,
+.brand-logo-elphino:focus-within .elphino-drop-2,
+.brand-logo-elphino.brand-logo-playing .elphino-drop-2 { animation-delay: 100ms; --drop-x: 23px; --drop-y: -30px; }
+.brand-logo-elphino:hover .elphino-drop-3,
+.brand-logo-elphino:focus-within .elphino-drop-3,
+.brand-logo-elphino.brand-logo-playing .elphino-drop-3 { animation-delay: 180ms; --drop-x: -19px; --drop-y: -34px; }
+.brand-logo-elphino:hover .elphino-drop-4,
+.brand-logo-elphino:focus-within .elphino-drop-4,
+.brand-logo-elphino.brand-logo-playing .elphino-drop-4 { animation-delay: 290ms; --drop-x: 34px; --drop-y: -18px; }
+.brand-logo-elphino:hover .elphino-drop-5,
+.brand-logo-elphino:focus-within .elphino-drop-5,
+.brand-logo-elphino.brand-logo-playing .elphino-drop-5 { animation-delay: 390ms; --drop-x: -31px; --drop-y: -16px; }
+.elphino-drop-1 { --drop-x: 5px; --drop-y: -39px; }
+
+@keyframes elphino-happy-bounce {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-2px) rotate(-1deg); }
+  65% { transform: translateY(1px) rotate(1deg); }
+}
+@keyframes elphino-trunk-shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-7deg); }
+  55% { transform: rotate(8deg); }
+  78% { transform: rotate(-4deg); }
+}
+@keyframes elphino-water-show { 0%, 100% { opacity: 0; } 12%, 78% { opacity: 1; } }
+@keyframes elphino-water-drop {
+  0% { opacity: 0; transform: translate(0, 0) scale(.45) rotate(20deg); }
+  20% { opacity: 1; }
+  70% { opacity: .95; }
+  100% { opacity: 0; transform: translate(var(--drop-x), var(--drop-y)) scale(1) rotate(55deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-elphino .elphino-logo-body,
+  .brand-logo-elphino .elphino-trunk-layer,
+  .brand-logo-elphino .elphino-water,
+  .brand-logo-elphino .elphino-drop { animation: none !important; }
+}
 
 @keyframes image-reveal { from { opacity: 0; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
 @keyframes rise-in { to { opacity: 1; transform: translateY(0); } }
