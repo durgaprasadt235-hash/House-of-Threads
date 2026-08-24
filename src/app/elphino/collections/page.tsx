@@ -16,7 +16,7 @@ export default async function ElphinoCollectionsPage({ searchParams }: PageProps
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070808] text-white">
-      <Header active="Collections" />
+      <Header active="Elphino" />
       <section aria-labelledby="collections-heading" className="elphino-collections-hero relative min-h-[760px] overflow-hidden pt-[78px] lg:min-h-[820px] lg:pt-[92px]">
         <div className="absolute inset-y-0 left-0 w-full sm:w-1/2"><Image alt="Young model in an Elphino sage rich-cotton polo" className="elphino-catalog-drift object-cover object-center sm:object-[54%_center]" fill loading="eager" priority sizes="(max-width: 639px) 100vw, 50vw" src="/images/elphino/collections/product-polo-sage-v3.png" /><div className="absolute inset-0 bg-black/55 sm:bg-gradient-to-r sm:from-black/5 sm:via-black/15 sm:to-[#070808]" /></div>
         <div className="absolute inset-y-0 right-0 hidden w-1/2 sm:block"><Image alt="Young model in an Elphino cream artwork cotton tee" className="elphino-catalog-drift-alt object-cover object-[48%_center]" fill loading="eager" priority sizes="50vw" src="/images/elphino/collections/product-tee-cream-v3.png" /><div className="absolute inset-0 bg-gradient-to-l from-black/5 via-black/25 to-[#070808]" /></div>
