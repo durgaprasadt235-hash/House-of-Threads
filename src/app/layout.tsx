@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cormorant_Garamond, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,16 +12,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const editorialSerif = Cormorant_Garamond({
+  variable: "--font-editorial-serif",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
   title: { default: "House of Threads", template: "%s | House of Threads" },
-  description: "Elphino and The Walker Company, together under one house.",
+  description: "Every thread, stitched for you to feel like you. Discover Elphino and The Walker Company.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${editorialSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -10,10 +10,133 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-editorial-serif);
 }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  color: rgb(255 255 255 / 0.86);
+  font-size: 0.72rem;
+  font-weight: 560;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: color 250ms ease;
+}
+
+.nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 26px;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: #d5a25d;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 300ms ease;
+}
+
+.nav-link:hover, .nav-link:focus-visible { color: #f0c789; }
+.nav-link:hover::after, .nav-link:focus-visible::after { transform: scaleX(1); transform-origin: left center; }
+
+.hero { --pointer-x: 0; --pointer-y: 0; }
+
+.hero-image {
+  overflow: hidden;
+  opacity: 0;
+  animation: image-reveal 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: filter 700ms ease, opacity 700ms ease;
+}
+
+.hero-image-right { animation-delay: 90ms; }
+
+.hero-image img {
+  transform: scale(1.035) translate3d(calc(var(--pointer-x) * 5px), calc(var(--pointer-y) * 4px), 0);
+  transition: transform 800ms cubic-bezier(0.22, 1, 0.36, 1), filter 700ms ease;
+}
+
+.hero-image-left img { animation: elphino-drift 14s ease-in-out 1.6s infinite alternate; }
+.hero-image-right img { animation: walker-drift 16s ease-in-out 1.8s infinite alternate; }
+
+.hero-image:hover img, .hero-image:focus-visible img {
+  filter: contrast(1.04) saturate(1.025);
+  transform: scale(1.05) translate3d(calc(var(--pointer-x) * 6px), calc(var(--pointer-y) * 5px), 0);
+}
+
+.hero[data-focus="elphino"] .hero-image-right, .hero[data-focus="walker"] .hero-image-left { filter: brightness(0.72) saturate(0.78); }
+.hero[data-focus="elphino"] [data-brand-copy="walker"], .hero[data-focus="walker"] [data-brand-copy="elphino"] { opacity: 0.58; }
+.brand-copy { transition: opacity 600ms ease; }
+
+.hero-identity, .hero-title, .hero-ornament, .brand-selectors {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: rise-in 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-identity { animation-delay: 180ms; }
+.hero-title { animation-delay: 330ms; }
+.hero-ornament { animation-delay: 460ms; }
+.brand-selectors { animation-delay: 580ms; }
+
+.gold-stitch { transform: scaleX(0); transform-origin: center; animation: stitch-draw 650ms ease 480ms forwards; }
+.stitch-knot {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  border: 1px solid #d5a25d;
+}
+.stitch-knot::before, .stitch-knot::after {
+  position: absolute;
+  content: "";
+  background: #d5a25d;
+}
+.stitch-knot::before { inset: 5px -4px; height: 1px; }
+.stitch-knot::after { inset: -4px 5px; width: 1px; }
+.brand-elphino { position: relative; }
+.brand-elphino::after {
+  position: absolute;
+  right: 22%;
+  bottom: -5px;
+  left: 22%;
+  height: 2px;
+  content: "";
+  background: #d96932;
+  transform: rotate(-2deg);
+}
+
+@keyframes image-reveal { from { opacity: 0; transform: scale(1.025); } to { opacity: 1; transform: scale(1); } }
+@keyframes rise-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes stitch-draw { to { transform: scaleX(1); } }
+@keyframes elphino-drift { from { object-position: 42% 40%; } to { object-position: 42% 42%; } }
+@keyframes walker-drift { from { object-position: 58% 44%; } to { object-position: 58% 42%; } }
+
+@media (max-width: 1090px) and (min-width: 1024px) {
+  .nav-link { font-size: 0.64rem; letter-spacing: 0.12em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hero-image, .hero-identity, .hero-title, .hero-ornament, .brand-selectors { opacity: 1; transform: none; }
+  .gold-stitch { transform: scaleX(1); }
 }
