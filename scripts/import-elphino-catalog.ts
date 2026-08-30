@@ -372,11 +372,12 @@ async function runImport(
           slug,
           price: fixture.price,
           fit: fixture.fit,
-          isActive: fixture.inStock,
+          isActive: true,
           style: fixture.style ?? null,
           badge: fixture.status ?? null,
           designConcept: fixture.designConcept ?? null,
           designTechnique: fixture.designTechnique ?? null,
+          designKey: fixture.poloDesign ?? null,
           createdRank: fixture.createdRank,
           brandPlacement: fixture.brandPlacement
             ? (fixture.brandPlacement as object)
@@ -394,13 +395,14 @@ async function runImport(
           baseSku,
           gender: "UNISEX",
           fit: fixture.fit,
-          isActive: fixture.inStock,
+          isActive: true,
           isFeatured: false,
           isNewArrival: fixture.status === "NEW",
           style: fixture.style ?? null,
           badge: fixture.status ?? null,
           designConcept: fixture.designConcept ?? null,
           designTechnique: fixture.designTechnique ?? null,
+          designKey: fixture.poloDesign ?? null,
           createdRank: fixture.createdRank,
           brandPlacement: fixture.brandPlacement
             ? (fixture.brandPlacement as object)
