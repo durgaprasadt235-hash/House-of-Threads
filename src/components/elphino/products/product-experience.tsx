@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent, type PointerEvent } from "react";
 
-import { colorHex } from "@/data/elphino-products";
+import { colorHex } from "@/data/elphino-constants";
 import type { StorefrontProductDto } from "@/services/types";
 
 export function ProductExperience({ product }: { product: StorefrontProductDto }) {

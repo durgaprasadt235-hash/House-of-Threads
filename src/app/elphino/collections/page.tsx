@@ -5,13 +5,17 @@ import { CollectionsCatalog } from "@/components/elphino/collections/catalog";
 import { BrandLogo } from "@/components/home/brand-logo";
 import { Header } from "@/components/home/header";
 import { SiteFooter } from "@/components/site/site-footer";
+import { getElphinoCatalogProducts } from "@/services/catalog";
 
 export const metadata: Metadata = { title: "Elphino Collections", description: "Find expressive Elphino polos, round necks, shirts, hoodies, jeans, and trousers." };
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function ElphinoCollectionsPage({ searchParams }: PageProps) {
-  const params = await searchParams;
+  const [params, products] = await Promise.all([
+    searchParams,
+    getElphinoCatalogProducts(),
+  ]);
   const initialFilters = Object.fromEntries(["category", "style", "size", "color", "fit", "price", "availability"].flatMap((key) => typeof params[key] === "string" ? [[key, params[key]]] : []));
 
   return (
@@ -31,7 +35,7 @@ export default async function ElphinoCollectionsPage({ searchParams }: PageProps
           <a className="elphino-reveal mt-9 inline-flex min-h-12 items-center border border-[#23c4cb]/80 px-7 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#58dce1] [animation-delay:520ms]" href="#categories">Explore collections <span aria-hidden="true" className="ml-3">↓</span></a>
         </div>
       </section>
-      <CollectionsCatalog initialFilters={initialFilters} />
+      <CollectionsCatalog initialFilters={initialFilters} products={products} />
       <SiteFooter />
     </main>
   );

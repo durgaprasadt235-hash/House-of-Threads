@@ -2,43 +2,17 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { StorefrontProductDto } from "./types";
+import type { Category, Inventory, Product, ProductImage, ProductVariant } from "@prisma/client";
 
-export async function getActiveElphinoProductIds(): Promise<string[]> {
-  const products = await db.product.findMany({
-    where: {
-      isActive: true,
-      brand: { slug: "elphino" },
-    },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
+type ProductWithRelations = Product & {
+  category: Category;
+  images: ProductImage[];
+  variants: (ProductVariant & {
+    inventory: Inventory | null;
+  })[];
+};
 
-  return products.map((product) => product.id);
-}
-
-export async function getElphinoProductById(id: string): Promise<StorefrontProductDto | null> {
-  const product = await db.product.findUnique({
-    where: {
-      id,
-      isActive: true,
-      brand: { slug: "elphino" },
-    },
-    include: {
-      category: true,
-      images: {
-        orderBy: { position: "asc" },
-      },
-      variants: {
-        where: { isActive: true },
-        include: { inventory: true },
-        orderBy: { createdAt: "asc" },
-      },
-    },
-  });
-
-  if (!product) return null;
-
-  // Process Images
+function mapProductToStorefrontDto(product: ProductWithRelations): StorefrontProductDto {
   let defaultImage = "";
   let backImage: string | undefined = undefined;
   const colorImages: Record<string, string> = {};
@@ -80,6 +54,8 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
     };
   });
 
+  const badge = (product.badge as "NEW" | "LIMITED") ?? undefined;
+
   return {
     id: product.id,
     name: product.name,
@@ -88,7 +64,11 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
     category: product.category.name,
     style: product.style ?? "Standard",
     fit: product.fit ?? "Regular",
-    badge: (product.badge as "NEW" | "LIMITED") ?? undefined,
+    badge,
+    status: badge,
+    createdRank: product.createdRank,
+    isFeatured: product.isFeatured,
+    isNewArrival: product.isNewArrival,
     designConcept: product.designConcept ?? undefined,
     designTechnique: product.designTechnique ?? undefined,
     designKey: product.designKey ?? undefined,
@@ -102,4 +82,65 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
     inStock: hasAnyStock,
     variants,
   };
+}
+
+export async function getActiveElphinoProductIds(): Promise<string[]> {
+  const products = await db.product.findMany({
+    where: {
+      isActive: true,
+      brand: { slug: "elphino" },
+    },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return products.map((product) => product.id);
+}
+
+export async function getElphinoProductById(id: string): Promise<StorefrontProductDto | null> {
+  const product = await db.product.findUnique({
+    where: {
+      id,
+      isActive: true,
+      brand: { slug: "elphino" },
+    },
+    include: {
+      category: true,
+      images: {
+        orderBy: { position: "asc" },
+      },
+      variants: {
+        where: { isActive: true },
+        include: { inventory: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!product) return null;
+
+  return mapProductToStorefrontDto(product);
+}
+
+export async function getElphinoCatalogProducts(): Promise<StorefrontProductDto[]> {
+  const products = await db.product.findMany({
+    where: {
+      isActive: true,
+      brand: { slug: "elphino" },
+    },
+    include: {
+      category: true,
+      images: {
+        orderBy: { position: "asc" },
+      },
+      variants: {
+        where: { isActive: true },
+        include: { inventory: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return products.map(mapProductToStorefrontDto);
 }
