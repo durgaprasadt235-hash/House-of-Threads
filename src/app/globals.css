@@ -24,6 +24,11 @@ body {
 
 button, a { -webkit-tap-highlight-color: transparent; }
 
+.walker-nav { position: relative; display: inline-flex; height: 100%; align-items: center; white-space: nowrap; font-size: .68rem; letter-spacing: .15em; text-transform: uppercase; color: rgb(255 255 255 / .78); transition: color .25s ease; }
+.walker-nav::after { position:absolute; right:0; bottom:20px; left:0; height:1px; content:""; background:#d5a25d; transform:scaleX(0); transition:transform .25s ease; }
+.walker-nav:hover,.walker-nav-active { color:#efc77f; }
+.walker-nav:hover::after,.walker-nav-active::after { transform:scaleX(1); }
+
 .nav-link {
   position: relative;
   display: inline-flex;
@@ -240,9 +245,133 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .elphino-thread { transform-origin: center; animation: thread-draw 1.4s cubic-bezier(0.22, 1, 0.36, 1) 500ms both; }
 .elphino-reveal { opacity: 0; transform: translateY(14px); animation: rise-in 750ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
+.theme-orbit {
+  position: absolute;
+  z-index: 1;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: linear-gradient(#070808, #070808) padding-box,
+    conic-gradient(from 20deg, #23c4cb, #e23a82, transparent 35%, #e9b85f, transparent 72%, #23c4cb) border-box;
+  opacity: 0.42;
+  animation: theme-orbit-turn 26s linear infinite;
+}
+.theme-orbit-one { left: 50%; top: 44%; width: min(76vw, 980px); height: min(29vw, 360px); transform: translate(-50%, -50%) rotate(-7deg); }
+.theme-orbit-two { left: 50%; top: 57%; width: min(58vw, 720px); height: min(20vw, 240px); transform: translate(-50%, -50%) rotate(11deg); animation-direction: reverse; animation-duration: 34s; }
+.theme-world::after { position: absolute; inset: 0; pointer-events: none; content: ""; border: 1px solid rgb(255 255 255 / 0.08); }
+
+@keyframes theme-orbit-turn { from { rotate: 0deg; } to { rotate: 360deg; } }
+
 @keyframes catalog-drift { from { transform: scale(1.025) translateY(-3px); } to { transform: scale(1.04) translateY(5px); } }
 @keyframes catalog-drift-alt { from { transform: scale(1.04) translateY(4px); } to { transform: scale(1.025) translateY(-4px); } }
 @keyframes thread-draw { from { opacity: 0; transform: scaleX(0); } to { opacity: 0.8; transform: scaleX(1); } }
+
+/* State collection motion: restrained on cards, cinematic on destination headers. */
+.state-card {
+  transition: transform 520ms cubic-bezier(.22, 1, .36, 1), box-shadow 520ms ease;
+}
+.state-card-link:focus-visible {
+  outline: 2px solid #c89245;
+  outline-offset: 4px;
+}
+.state-card-media { isolation: isolate; }
+.state-card-image {
+  transform: scale(1.001);
+  transition: transform 1100ms cubic-bezier(.22, 1, .36, 1), filter 700ms ease;
+  will-change: transform;
+}
+.state-card-glint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 20%, rgb(255 255 255 / 16%) 47%, transparent 72%);
+  opacity: 0;
+  transform: translateX(-70%);
+  transition: opacity 220ms ease, transform 900ms cubic-bezier(.22, 1, .36, 1);
+}
+.state-card-arrow {
+  transition: background-color 320ms ease, transform 420ms cubic-bezier(.22, 1, .36, 1);
+}
+.state-card:is(:hover, :focus-within) {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 38px rgb(20 16 10 / 16%);
+}
+.state-card:is(:hover, :focus-within) .state-card-image {
+  filter: saturate(1.08) contrast(1.04);
+  transform: scale(1.035);
+}
+.state-card:is(:hover, :focus-within) .state-card-glint {
+  opacity: 1;
+  transform: translateX(70%);
+}
+.state-card:is(:hover, :focus-within) .state-card-arrow {
+  background: #c89245;
+  transform: translateX(3px) rotate(-6deg);
+}
+
+.state-header-reveal { isolation: isolate; }
+.state-header-image {
+  opacity: 0;
+  transform: scale(1.035);
+  clip-path: inset(0 0 0 100%);
+  animation: state-header-unveil 1200ms cubic-bezier(.22, 1, .36, 1) 80ms forwards;
+}
+.state-header-shade {
+  z-index: 1;
+  opacity: 0;
+  animation: state-header-fade 600ms ease 760ms forwards;
+}
+.state-header-copy { z-index: 2; }
+.state-header-copy > * {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: state-header-copy-in 650ms cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.state-header-kicker { animation-delay: 650ms !important; }
+.state-header-title { animation-delay: 760ms !important; }
+.state-header-description { animation-delay: 870ms !important; }
+.state-header-count { animation-delay: 980ms !important; }
+.state-header-wipe {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(90deg, #081117 0 48%, #c89245 50%, #081117 52% 100%);
+  transform: translateX(-101%);
+  animation: state-header-wipe 1050ms cubic-bezier(.76, 0, .24, 1) forwards;
+}
+@keyframes state-header-unveil {
+  to { opacity: 1; transform: scale(1); clip-path: inset(0); }
+}
+@keyframes state-header-fade { to { opacity: 1; } }
+@keyframes state-header-copy-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes state-header-wipe {
+  0% { transform: translateX(-101%); }
+  48%, 52% { transform: translateX(0); }
+  100% { transform: translateX(101%); }
+}
+
+.garment-card-front { opacity: 1; }
+.garment-card-back { opacity: 0; }
+
+@media (hover: hover) {
+  .group:is(:hover, :focus-within) .garment-card-front {
+    animation: garment-card-front-cycle 3.6s ease-in-out infinite;
+  }
+  .group:is(:hover, :focus-within) .garment-card-back {
+    animation: garment-card-back-cycle 3.6s ease-in-out infinite;
+  }
+}
+
+@keyframes garment-card-front-cycle {
+  0%, 42%, 100% { opacity: 1; }
+  50%, 92% { opacity: 0; }
+}
+
+@keyframes garment-card-back-cycle {
+  0%, 42%, 100% { opacity: 0; }
+  50%, 92% { opacity: 1; }
+}
 
 @media (min-width: 768px) {
   .category-tile-1 { grid-column: span 5; grid-row: span 2; }
@@ -268,4 +397,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .hero-image, .hero-identity, .hero-title, .hero-ornament, .brand-selectors, .elphino-reveal { opacity: 1; transform: none; }
   .gold-stitch { transform: scaleX(1); }
   .elphino-thread { opacity: 0.8; transform: scaleX(1); }
+  .state-card,
+  .state-card-image,
+  .state-card-arrow { transform: none !important; }
+  .state-card-glint,
+  .state-header-wipe { display: none; }
+  .state-header-image { opacity: 1; transform: none; clip-path: none; }
+  .state-header-shade,
+  .state-header-copy > * { opacity: 1; transform: none; }
+  .garment-card-front { opacity: 1; }
+  .garment-card-back { opacity: 0; }
 }

@@ -1,0 +1,571 @@
+diff --git a/src/app/elphino/collections/page.tsx b/src/app/elphino/collections/page.tsx
+index be62e58..ba0f9e4 100644
+--- a/src/app/elphino/collections/page.tsx
++++ b/src/app/elphino/collections/page.tsx
+@@ -5,13 +5,17 @@ import { CollectionsCatalog } from "@/components/elphino/collections/catalog";
+ import { BrandLogo } from "@/components/home/brand-logo";
+ import { Header } from "@/components/home/header";
+ import { SiteFooter } from "@/components/site/site-footer";
++import { getElphinoCatalogProducts } from "@/services/catalog";
+ 
+ export const metadata: Metadata = { title: "Elphino Collections", description: "Find expressive Elphino polos, round necks, shirts, hoodies, jeans, and trousers." };
+ 
+ type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+ 
+ export default async function ElphinoCollectionsPage({ searchParams }: PageProps) {
+-  const params = await searchParams;
++  const [params, products] = await Promise.all([
++    searchParams,
++    getElphinoCatalogProducts(),
++  ]);
+   const initialFilters = Object.fromEntries(["category", "style", "size", "color", "fit", "price", "availability"].flatMap((key) => typeof params[key] === "string" ? [[key, params[key]]] : []));
+ 
+   return (
+@@ -31,7 +35,7 @@ export default async function ElphinoCollectionsPage({ searchParams }: PageProps
+           <a className="elphino-reveal mt-9 inline-flex min-h-12 items-center border border-[#23c4cb]/80 px-7 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#58dce1] [animation-delay:520ms]" href="#categories">Explore collections <span aria-hidden="true" className="ml-3">↓</span></a>
+         </div>
+       </section>
+-      <CollectionsCatalog initialFilters={initialFilters} />
++      <CollectionsCatalog initialFilters={initialFilters} products={products} />
+       <SiteFooter />
+     </main>
+   );
+diff --git a/src/components/elphino/collections/catalog.tsx b/src/components/elphino/collections/catalog.tsx
+index 4090d22..2f51bb8 100644
+--- a/src/components/elphino/collections/catalog.tsx
++++ b/src/components/elphino/collections/catalog.tsx
+@@ -5,7 +5,8 @@ import Image from "next/image";
+ import Link from "next/link";
+ import { useEffect, useMemo, useState } from "react";
+ 
+-import { categoryImages, categoryOrder, categoryStyles, colorHex, elphinoProducts, type ElphinoProduct, type ProductCategory } from "@/data/elphino-products";
++import { categoryImages, categoryOrder, categoryStyles, colorHex, type ProductCategory } from "@/data/elphino-constants";
++import type { StorefrontProductDto } from "@/services/types";
+ 
+ type Filters = { category: string; style: string; size: string; color: string; fit: string; price: string; availability: string };
+ type FilterKey = keyof Filters;
+@@ -14,13 +15,14 @@ const topSizes = ["S", "M", "L", "XL", "XXL"];
+ const waistSizes = ["28", "30", "32", "34", "36", "38", "40"];
+ const lengths = ["28", "30", "32", "34"];
+ const fits = ["Slim", "Regular", "Relaxed", "Oversized"];
+-const colors = Array.from(new Set(elphinoProducts.flatMap((product) => product.colors)));
+ 
+-export function CollectionsCatalog({ initialFilters }: { initialFilters: Partial<Filters> }) {
++export function CollectionsCatalog({ initialFilters, products }: { initialFilters: Partial<Filters>; products: StorefrontProductDto[] }) {
+   const [filters, setFilters] = useState<Filters>({ ...emptyFilters, ...initialFilters });
+   const [sort, setSort] = useState("featured");
+   const [drawerOpen, setDrawerOpen] = useState(false);
+ 
++  const colors = useMemo(() => Array.from(new Set(products.flatMap((product) => product.colors))), [products]);
++
+   useEffect(() => {
+     const params = new URLSearchParams();
+     Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
+@@ -46,27 +48,39 @@ export function CollectionsCatalog({ initialFilters }: { initialFilters: Partial
+   };
+ 
+   const filteredProducts = useMemo(() => {
+-    const result = elphinoProducts.filter((product) => {
++    const result = products.filter((product) => {
+       if (filters.category && product.category !== filters.category) return false;
+       if (filters.style && product.style !== filters.style) return false;
+-      if (filters.color && !product.colors.includes(filters.color)) return false;
+       if (filters.fit && product.fit !== filters.fit) return false;
+       if (filters.availability === "in-stock" && !product.inStock) return false;
+       if (filters.availability === "out-of-stock" && product.inStock) return false;
+-      if (filters.size) {
+-        const sizeMatches = product.sizes.some((size) => size === filters.size || size.includes(`W${filters.size}/`) || size.endsWith(`/L${filters.size}`));
+-        if (!sizeMatches) return false;
++      if (filters.size || filters.color) {
++        const hasMatchingVariant = product.variants.some((v) => {
++          if (!v.isAvailable) return false;
++          const sizeMatches = !filters.size || v.size === filters.size || v.size.includes(`W${filters.size}/`) || v.size.endsWith(`/L${filters.size}`);
++          const colorMatches = !filters.color || v.color === filters.color;
++          return sizeMatches && colorMatches;
++        });
++        if (!hasMatchingVariant) return false;
+       }
+       if (filters.price === "under-20" && product.price >= 20) return false;
+       if (filters.price === "20-22" && (product.price < 20 || product.price > 22)) return false;
+       if (filters.price === "23-25" && product.price < 23) return false;
+       return true;
+     });
+-    return [...result].sort((a, b) => sort === "newest" ? b.createdRank - a.createdRank : sort === "price-low" ? a.price - b.price : sort === "price-high" ? b.price - a.price : Number(Boolean(b.status)) - Number(Boolean(a.status)));
+-  }, [filters, sort]);
++    return [...result].sort((a, b) =>
++      sort === "newest"
++        ? b.createdRank - a.createdRank
++        : sort === "price-low"
++          ? a.price - b.price
++          : sort === "price-high"
++            ? b.price - a.price
++            : Number(Boolean(b.status || b.badge)) - Number(Boolean(a.status || a.badge))
++    );
++  }, [filters, products, sort]);
+ 
+   const activeFilters = Object.entries(filters).filter((entry): entry is [FilterKey, string] => Boolean(entry[1]));
+-  const newDrops = [...elphinoProducts].sort((a, b) => b.createdRank - a.createdRank).slice(0, 4);
++  const newDrops = useMemo(() => [...products].sort((a, b) => b.createdRank - a.createdRank).slice(0, 4), [products]);
+ 
+   return (
+     <>
+@@ -94,7 +108,7 @@ export function CollectionsCatalog({ initialFilters }: { initialFilters: Partial
+           {activeFilters.length ? <div aria-label="Active filters" className="flex flex-wrap items-center gap-2 border-b border-black/10 py-4">{activeFilters.map(([key, value]) => <button className="inline-flex min-h-9 items-center gap-2 border border-black/25 px-3 text-[10px] font-semibold uppercase tracking-[0.12em]" key={key} onClick={() => setFilter(key, value)} type="button">{key === "availability" ? value.replace("-", " ") : value}<X className="size-3" /></button>)}<button className="min-h-9 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] underline underline-offset-4" onClick={() => setFilters(emptyFilters)} type="button">Clear all</button></div> : null}
+ 
+           <div className="mt-8 grid gap-8 lg:grid-cols-[240px_1fr]">
+-            <aside className="hidden lg:block"><FilterPanel filters={filters} setFilter={setFilter} clear={() => setFilters(emptyFilters)} /></aside>
++            <aside className="hidden lg:block"><FilterPanel clear={() => setFilters(emptyFilters)} colors={colors} filters={filters} products={products} setFilter={setFilter} /></aside>
+             <div>
+               {filteredProducts.length ? <div className="grid grid-cols-2 gap-x-3 gap-y-9 md:grid-cols-3 md:gap-x-5 xl:grid-cols-4">{filteredProducts.map((product) => <ProductCard light key={product.id} product={product} />)}</div> : <div className="grid min-h-96 place-items-center border border-black/15 text-center"><div><h3 className="font-serif text-3xl">Nothing matches those filters yet.</h3><button className="mt-6 border-b border-black pb-1 text-xs font-semibold uppercase tracking-[0.18em]" onClick={() => setFilters(emptyFilters)} type="button">Clear filters</button></div></div>}
+             </div>
+@@ -102,7 +116,7 @@ export function CollectionsCatalog({ initialFilters }: { initialFilters: Partial
+         </div>
+       </section>
+ 
+-      {drawerOpen ? <div aria-modal="true" className="fixed inset-0 z-[70] bg-black/65 lg:hidden" role="dialog"><div className="absolute inset-y-0 right-0 w-[min(92vw,420px)] overflow-y-auto bg-[#f1eadf] p-6 text-black"><div className="flex items-center justify-between border-b border-black/15 pb-5"><h2 className="text-lg font-semibold uppercase tracking-[0.16em]">Filter pieces</h2><button aria-label="Close filters" className="grid size-11 place-items-center" onClick={() => setDrawerOpen(false)} type="button"><X /></button></div><div className="mt-6"><FilterPanel filters={filters} setFilter={setFilter} clear={() => setFilters(emptyFilters)} /></div><button className="sticky bottom-4 mt-8 min-h-12 w-full bg-black px-5 text-xs font-semibold uppercase tracking-[0.18em] text-white" onClick={() => setDrawerOpen(false)} type="button">View {filteredProducts.length} pieces</button></div></div> : null}
++      {drawerOpen ? <div aria-modal="true" className="fixed inset-0 z-[70] bg-black/65 lg:hidden" role="dialog"><div className="absolute inset-y-0 right-0 w-[min(92vw,420px)] overflow-y-auto bg-[#f1eadf] p-6 text-black"><div className="flex items-center justify-between border-b border-black/15 pb-5"><h2 className="text-lg font-semibold uppercase tracking-[0.16em]">Filter pieces</h2><button aria-label="Close filters" className="grid size-11 place-items-center" onClick={() => setDrawerOpen(false)} type="button"><X /></button></div><div className="mt-6"><FilterPanel clear={() => setFilters(emptyFilters)} colors={colors} filters={filters} products={products} setFilter={setFilter} /></div><button className="sticky bottom-4 mt-8 min-h-12 w-full bg-black px-5 text-xs font-semibold uppercase tracking-[0.18em] text-white" onClick={() => setDrawerOpen(false)} type="button">View {filteredProducts.length} pieces</button></div></div> : null}
+     </>
+   );
+ }
+@@ -111,15 +125,16 @@ function CategorySection({ selected, onSelect }: { selected: string; onSelect: (
+   return <section className="bg-[#070808] px-5 py-20 sm:px-8 lg:px-12" id="categories"><div className="mx-auto max-w-[1500px]"><div className="mb-9 flex items-end justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#e9b85f]">Start with a silhouette</p><h2 className="mt-2 text-3xl font-medium uppercase tracking-[0.15em] sm:text-4xl">Shop by category</h2></div><span className="hidden text-xs uppercase tracking-[0.18em] text-white/70 sm:block">Six ways in</span></div><div className="category-mosaic grid auto-rows-[210px] grid-cols-2 gap-3 md:auto-rows-[260px] md:grid-cols-12 lg:auto-rows-[290px]">{categoryOrder.map((category, index) => <button aria-pressed={selected === category} className={`category-tile category-tile-${index + 1} group relative overflow-hidden border text-left ${selected === category ? "border-[#23c4cb]" : "border-white/10"}`} key={category} onClick={() => { onSelect(category); document.querySelector("#catalog")?.scrollIntoView({ behavior: "smooth" }); }} type="button"><Image alt={`${category} collection editorial`} className="object-cover transition-transform duration-700 group-hover:scale-[1.025]" fill sizes="(max-width: 767px) 50vw, 33vw" src={categoryImages[category]} /><span className="absolute inset-0 bg-gradient-to-t from-black via-black/5 to-transparent" /><span className="absolute inset-x-0 bottom-0 p-5"><span className="block h-px w-7 bg-[#23c4cb] transition-all duration-500 group-hover:w-14" /><span className="mt-3 block text-lg font-semibold uppercase tracking-[0.16em] transition-transform duration-500 group-hover:translate-x-1 sm:text-2xl">{category}</span><span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/75">{categoryStyles[category].slice(0, 3).join(" · ")}</span></span></button>)}</div></div></section>;
+ }
+ 
+-function ProductCard({ product, light = false }: { product: ElphinoProduct; light?: boolean }) {
++function ProductCard({ product, light = false }: { product: StorefrontProductDto; light?: boolean }) {
+   const href = `/elphino/products/${product.id}`;
+-  return <article className={`group min-w-0 ${light ? "text-black" : "text-white"}`}><div className="relative aspect-[3/4] overflow-hidden bg-[#ddd6ca]"><Link aria-label={`View ${product.name}`} className="absolute inset-0" href={href}><Image alt={`${product.name} rich-cotton development sample`} className="object-contain p-1.5 transition-transform duration-700 group-hover:scale-[1.015] sm:p-2.5 md:p-3 lg:p-4 2xl:p-5" fill sizes="(max-width: 479px) 50vw, (max-width: 767px) 46vw, (max-width: 1279px) 31vw, (max-width: 1919px) 23vw, 360px" src={product.image} /></Link>{product.status ? <span className="pointer-events-none absolute left-3 top-3 bg-black px-2.5 py-1 text-[9px] font-semibold tracking-[0.16em] text-white">{product.status}</span> : null}<button aria-label={`Save ${product.name} to wishlist`} className="absolute right-2 top-2 z-10 grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#23c4cb]" type="button"><Heart className="size-4" /></button></div><div className="pt-4"><p className={`text-[9px] font-semibold uppercase tracking-[0.18em] ${light ? "text-black/70" : "text-white/70"}`}>{product.category} · {product.style}</p><h3 className="mt-1 truncate text-sm font-medium sm:text-base"><Link className="underline-offset-4 hover:underline" href={href}>{product.name}</Link></h3><div className="mt-2 flex items-center justify-between gap-2"><span className="text-sm font-semibold">${product.price.toFixed(2)}</span><span className={`text-[10px] ${light ? "text-black/70" : "text-white/70"}`}>{product.colors.length} {product.colors.length === 1 ? "color" : "colors"}</span></div><p className={`mt-2 truncate text-[10px] uppercase tracking-[0.08em] ${light ? "text-black/70" : "text-white/70"}`}>{product.sizes.slice(0, 4).join("  ")}{product.sizes.length > 4 ? "  +" : ""}</p>{!product.inStock ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8f3047]">Out of stock</p> : null}</div></article>;
++  const badge = product.badge || product.status;
++  return <article className={`group min-w-0 ${light ? "text-black" : "text-white"}`}><div className={`relative aspect-[3/4] overflow-hidden ${product.backImage ? "bg-[#252525]" : "bg-[#ddd6ca]"}`}><Link aria-label={`View ${product.name}`} className="absolute inset-0" href={href}><Image alt={`${product.name} front view`} className={`${product.backImage ? "garment-card-front object-contain" : "object-cover"} transition-transform duration-700 group-hover:scale-[1.015]`} fill sizes="(max-width: 479px) 50vw, (max-width: 767px) 46vw, (max-width: 1279px) 31vw, (max-width: 1919px) 23vw, 360px" src={product.image} />{product.backImage ? <Image alt={`${product.name} back view`} className="garment-card-back object-contain transition-transform duration-700 group-hover:scale-[1.015]" fill sizes="(max-width: 479px) 50vw, (max-width: 767px) 46vw, (max-width: 1279px) 31vw, (max-width: 1919px) 23vw, 360px" src={product.backImage} /> : null}</Link>{badge ? <span className="pointer-events-none absolute left-3 top-3 bg-black px-2.5 py-1 text-[9px] font-semibold tracking-[0.16em] text-white">{badge}</span> : null}<button aria-label={`Save ${product.name} to wishlist`} className="absolute right-2 top-2 z-10 grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#23c4cb]" type="button"><Heart className="size-4" /></button></div><div className="pt-4"><p className={`text-[9px] font-semibold uppercase tracking-[0.18em] ${light ? "text-black/70" : "text-white/70"}`}>{product.designConcept || product.category} · {product.designTechnique || product.style}</p><h3 className="mt-1 truncate text-sm font-medium sm:text-base"><Link className="underline-offset-4 hover:underline" href={href}>{product.name}</Link></h3><div className="mt-2 flex items-center justify-between gap-2"><span className="text-sm font-semibold">${product.price.toFixed(2)}</span><span aria-label={`Available colors: ${product.colors.join(", ")}`} className="flex items-center gap-1.5">{product.colors.map((color) => <span className={`size-3.5 rounded-full border ${light ? "border-black/25" : "border-white/30"}`} key={color} style={{ backgroundColor: colorHex[color] }} title={color} />)}</span></div><p className={`mt-2 truncate text-[10px] uppercase tracking-[0.08em] ${light ? "text-black/70" : "text-white/70"}`}>{product.sizes.slice(0, 4).join("  ")}{product.sizes.length > 4 ? "  +" : ""}</p>{product.backImage ? <p className={`mt-2 text-[9px] font-semibold uppercase tracking-[0.14em] ${light ? "text-black/55" : "text-white/55"}`}>Hover for front + back · tap to open</p> : null}{!product.inStock ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8f3047]">Out of stock</p> : null}</div></article>;
+ }
+ 
+-function FilterPanel({ filters, setFilter, clear }: { filters: Filters; setFilter: (key: FilterKey, value: string) => void; clear: () => void }) {
++function FilterPanel({ filters, setFilter, clear, products, colors }: { filters: Filters; setFilter: (key: FilterKey, value: string) => void; clear: () => void; products: StorefrontProductDto[]; colors: string[] }) {
+   const category = categoryOrder.includes(filters.category as ProductCategory) ? filters.category as ProductCategory : null;
+   const isBottoms = category === "Jeans" || category === "Trousers";
+-  return <div className="space-y-1"><div className="mb-4 flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-[0.16em]">Filters</span><button className="text-[10px] uppercase tracking-[0.12em] underline underline-offset-4" onClick={clear} type="button">Clear</button></div><FilterGroup label="Category">{categoryOrder.map((value) => <FilterOption checked={filters.category === value} key={value} label={value} onClick={() => setFilter("category", value)} />)}</FilterGroup><FilterGroup label="Style">{(category ? categoryStyles[category] : Array.from(new Set(elphinoProducts.map((product) => product.style)))).map((value) => <FilterOption checked={filters.style === value} key={value} label={value} onClick={() => setFilter("style", value)} />)}</FilterGroup><FilterGroup label="Size">{isBottoms ? <><p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-black/65">Waist</p><div className="mb-4 flex flex-wrap gap-2">{waistSizes.map((value) => <SizeButton active={filters.size === value} key={value} label={value} onClick={() => setFilter("size", value)} />)}</div><p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-black/65">Length</p><div className="flex flex-wrap gap-2">{lengths.map((value) => <SizeButton active={filters.size === value} key={value} label={`L${value}`} onClick={() => setFilter("size", value)} />)}</div></> : <div className="flex flex-wrap gap-2">{topSizes.map((value) => <SizeButton active={filters.size === value} key={value} label={value} onClick={() => setFilter("size", value)} />)}</div>}</FilterGroup><FilterGroup label="Color">{colors.map((value) => <button aria-pressed={filters.color === value} className="flex min-h-10 w-full items-center gap-3 text-xs" key={value} onClick={() => setFilter("color", value)} type="button"><span aria-hidden="true" className="size-4 border border-black/30" style={{ background: colorHex[value] }} /><span>{value}</span>{filters.color === value ? <Check className="ml-auto size-3" /> : null}</button>)}</FilterGroup><FilterGroup label="Fit">{fits.map((value) => <FilterOption checked={filters.fit === value} key={value} label={value} onClick={() => setFilter("fit", value)} />)}</FilterGroup><FilterGroup label="Price">{[["under-20", "Under $20"], ["20-22", "$20–$22"], ["23-25", "$23–$25"]].map(([value, label]) => <FilterOption checked={filters.price === value} key={value} label={label} onClick={() => setFilter("price", value)} />)}</FilterGroup><FilterGroup label="Availability"><FilterOption checked={filters.availability === "in-stock"} label="In Stock" onClick={() => setFilter("availability", "in-stock")} /><FilterOption checked={filters.availability === "out-of-stock"} label="Out of Stock" onClick={() => setFilter("availability", "out-of-stock")} /></FilterGroup></div>;
++  return <div className="space-y-1"><div className="mb-4 flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-[0.16em]">Filters</span><button className="text-[10px] uppercase tracking-[0.12em] underline underline-offset-4" onClick={clear} type="button">Clear</button></div><FilterGroup label="Category">{categoryOrder.map((value) => <FilterOption checked={filters.category === value} key={value} label={value} onClick={() => setFilter("category", value)} />)}</FilterGroup><FilterGroup label="Style">{(category ? categoryStyles[category] : Array.from(new Set(products.map((product) => product.style)))).map((value) => <FilterOption checked={filters.style === value} key={value} label={value} onClick={() => setFilter("style", value)} />)}</FilterGroup><FilterGroup label="Size">{isBottoms ? <><p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-black/65">Waist</p><div className="mb-4 flex flex-wrap gap-2">{waistSizes.map((value) => <SizeButton active={filters.size === value} key={value} label={value} onClick={() => setFilter("size", value)} />)}</div><p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-black/65">Length</p><div className="flex flex-wrap gap-2">{lengths.map((value) => <SizeButton active={filters.size === value} key={value} label={`L${value}`} onClick={() => setFilter("size", value)} />)}</div></> : <div className="flex flex-wrap gap-2">{topSizes.map((value) => <SizeButton active={filters.size === value} key={value} label={value} onClick={() => setFilter("size", value)} />)}</div>}</FilterGroup><FilterGroup label="Color">{colors.map((value) => <button aria-pressed={filters.color === value} className="flex min-h-10 w-full items-center gap-3 text-xs" key={value} onClick={() => setFilter("color", value)} type="button"><span aria-hidden="true" className="size-4 border border-black/30" style={{ background: colorHex[value] }} /><span>{value}</span>{filters.color === value ? <Check className="ml-auto size-3" /> : null}</button>)}</FilterGroup><FilterGroup label="Fit">{fits.map((value) => <FilterOption checked={filters.fit === value} key={value} label={value} onClick={() => setFilter("fit", value)} />)}</FilterGroup><FilterGroup label="Price">{[["under-20", "Under $20"], ["20-22", "$20–$22"], ["23-25", "$23–$25"]].map(([value, label]) => <FilterOption checked={filters.price === value} key={value} label={label} onClick={() => setFilter("price", value)} />)}</FilterGroup><FilterGroup label="Availability"><FilterOption checked={filters.availability === "in-stock"} label="In Stock" onClick={() => setFilter("availability", "in-stock")} /><FilterOption checked={filters.availability === "out-of-stock"} label="Out of Stock" onClick={() => setFilter("availability", "out-of-stock")} /></FilterGroup></div>;
+ }
+ 
+ function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) { return <details className="border-t border-black/15 py-1" open><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em]">{label}<ChevronDown className="size-4" /></summary><div className="pb-4">{children}</div></details>; }
+diff --git a/src/components/elphino/products/product-experience.tsx b/src/components/elphino/products/product-experience.tsx
+index 5ce4ac3..f7c6690 100644
+--- a/src/components/elphino/products/product-experience.tsx
++++ b/src/components/elphino/products/product-experience.tsx
+@@ -5,7 +5,7 @@ import Image from "next/image";
+ import Link from "next/link";
+ import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent, type PointerEvent } from "react";
+ 
+-import { colorHex } from "@/data/elphino-products";
++import { colorHex } from "@/data/elphino-constants";
+ import type { StorefrontProductDto } from "@/services/types";
+ 
+ export function ProductExperience({ product }: { product: StorefrontProductDto }) {
+diff --git a/src/data/elphino-constants.ts b/src/data/elphino-constants.ts
+new file mode 100644
+index 0000000..dd958ff
+--- /dev/null
++++ b/src/data/elphino-constants.ts
+@@ -0,0 +1,72 @@
++export const categoryOrder = ["Polos", "Round Necks", "Shirts", "Hoodies", "Jeans", "Trousers"] as const;
++export type ProductCategory = (typeof categoryOrder)[number];
++export type PoloDesignId = "beach" | "city" | "forest" | "waterfall" | "ocean" | "night-city" | "mountain" | "tropical" | "rain" | "desert";
++
++export const categoryStyles: Record<ProductCategory, string[]> = {
++  Polos: ["Designer", "Printed", "Minimal"],
++  "Round Necks": ["Plain", "Printed", "Graphic", "Oversized", "Minimal"],
++  Shirts: ["Casual", "Plain", "Printed", "Pattern", "Designer"],
++  Hoodies: ["Pullover", "Zip", "Printed", "Minimal"],
++  Jeans: ["Slim", "Straight", "Relaxed", "Stretch"],
++  Trousers: ["Casual", "Chino", "Straight", "Stretch"],
++};
++
++export const categoryImages: Record<ProductCategory, string> = {
++  Polos: "/images/elphino/collections/product-polo-sage-v3.png",
++  "Round Necks": "/images/elphino/collections/product-tee-cream-v3.png",
++  Shirts: "/images/elphino/collections/product-shirt-yellow-v3.png",
++  Hoodies: "/images/elphino/collections/product-hoodie-rust-v3.png",
++  Jeans: "/images/elphino/collections/product-jeans-ecru-v3.png",
++  Trousers: "/images/elphino/collections/product-trousers-olive-v3.png",
++};
++
++export const colorHex: Record<string, string> = {
++  Sage: "#9aa58a",
++  Lavender: "#a991b7",
++  Mauve: "#916f78",
++  Mustard: "#d99a00",
++  Teal: "#08737a",
++  Cream: "#eee5d3",
++  Cobalt: "#1557c0",
++  "Butter Yellow": "#f4d878",
++  Coral: "#e77866",
++  Rust: "#a8492f",
++  Ecru: "#e8dfcc",
++  Olive: "#68704b",
++  Navy: "#15223a",
++  Charcoal: "#353535",
++  Sand: "#cbbb9f",
++  "Sky Blue": "#8db9d8",
++  "Forest Green": "#264f3b",
++  Burgundy: "#6f2638",
++  "Brown Earth": "#4a2d1d",
++  "Bamboo Grove": "#42491f",
++  "Ivory Palm": "#eee4d2",
++  "Slate Agave": "#34404c",
++  "Plum Thorne": "#713743",
++  "Deep Sea": "#0c5961",
++  "Desert Seed": "#a99077",
++  "Graphite Root": "#272727",
++  "Sage Nepenthes": "#a5aa99",
++  "Golden Ochre": "#cf6c08",
++  "Off White": "#f1eadc",
++  "Sand Beige": "#c4a781",
++  "Dusty Rose": "#bd706b",
++  "Olive Green": "#59603a",
++  "Mustard Yellow": "#dfa022",
++  Terracotta: "#bd4e25",
++  "Teal Blue": "#347a80",
++  "Plum Purple": "#7c4058",
++  "Slate Gray": "#555555",
++  "Charcoal Black": "#202020",
++  "Cosmic Black": "#171717",
++  "Space Navy": "#172946",
++  "Galaxy Purple": "#43245c",
++  "Nebula Teal": "#0d5263",
++  "Stardust Maroon": "#741628",
++  "Orbit Green": "#3d4322",
++  "Cosmic Gray": "#3f3f3f",
++  "Moon Rock Beige": "#e4d0ae",
++  "Supernova Orange": "#b9410d",
++  "Celestial Blue": "#477b9e",
++};
+diff --git a/src/data/elphino-products.ts b/src/data/elphino-products.ts
+index a0679c8..4da6ed6 100644
+--- a/src/data/elphino-products.ts
++++ b/src/data/elphino-products.ts
+@@ -1,25 +1,19 @@
+-export const categoryOrder = ["Polos", "Round Necks", "Shirts", "Hoodies", "Jeans", "Trousers"] as const;
+-export type ProductCategory = (typeof categoryOrder)[number];
++import { stateRoundNeckDesigns } from "./designer-themes";
++import { categoryImages, categoryOrder, categoryStyles, colorHex, type PoloDesignId, type ProductCategory } from "./elphino-constants";
+ 
+-export const categoryStyles: Record<ProductCategory, string[]> = {
+-  Polos: ["Classic", "Colorblock", "Textured", "Printed", "Minimal"],
+-  "Round Necks": ["Plain", "Printed", "Graphic", "Oversized", "Minimal"],
+-  Shirts: ["Casual", "Plain", "Printed", "Pattern", "Designer"],
+-  Hoodies: ["Pullover", "Zip", "Printed", "Minimal"],
+-  Jeans: ["Slim", "Straight", "Relaxed", "Stretch"],
+-  Trousers: ["Casual", "Chino", "Straight", "Stretch"],
+-};
+-
+-export const categoryImages: Record<ProductCategory, string> = {
+-  Polos: "/images/elphino/collections/product-polo-sage-v3.png",
+-  "Round Necks": "/images/elphino/collections/product-tee-cream-v3.png",
+-  Shirts: "/images/elphino/collections/product-shirt-yellow-v3.png",
+-  Hoodies: "/images/elphino/collections/product-hoodie-rust-v3.png",
+-  Jeans: "/images/elphino/collections/product-jeans-ecru-v3.png",
+-  Trousers: "/images/elphino/collections/product-trousers-olive-v3.png",
+-};
++export { categoryImages, categoryOrder, categoryStyles, colorHex, type PoloDesignId, type ProductCategory };
+ 
+ const productImages = {
++  youthPolo01: "/images/elphino/polos/youth-v1/polo-01-motion.png",
++  youthPolo02: "/images/elphino/polos/youth-v1/polo-02-pixel.png",
++  youthPolo03: "/images/elphino/polos/youth-v1/polo-03-brush.png",
++  youthPolo04: "/images/elphino/polos/youth-v1/polo-04-fluid.png",
++  youthPolo05: "/images/elphino/polos/youth-v1/polo-05-orbit.png",
++  youthPolo06: "/images/elphino/polos/youth-v1/polo-06-stream.png",
++  youthPolo07: "/images/elphino/polos/youth-v1/polo-07-signal.png",
++  youthPolo08: "/images/elphino/polos/youth-v1/polo-08-canopy.png",
++  youthPolo09: "/images/elphino/polos/youth-v1/polo-09-after-dark.png",
++  youthPolo10: "/images/elphino/polos/youth-v1/polo-10-wave.png",
+   sagePolo: "/images/elphino/collections/product-polo-sage-v3.png",
+   lavenderPolo: "/images/elphino/collections/product-polo-lavender-v3.png",
+   creamTee: "/images/elphino/collections/product-tee-cream-v3.png",
+@@ -41,24 +35,121 @@ export type ElphinoProduct = {
+   sizes: string[];
+   fit: "Slim" | "Regular" | "Relaxed" | "Oversized";
+   image: string;
++  backImage?: string;
++  colorImages?: Record<string, string>;
++  poloDesign?: PoloDesignId;
++  designConcept?: string;
++  designTechnique?: "Screen Print" | "Thread Work" | "Tonal Print" | "Embroidery" | "Woven Patch";
+   status?: "NEW" | "LIMITED";
+   inStock: boolean;
+   createdRank: number;
++  brandPlacement?: {
++    front: string;
++    back: string;
++  };
+ };
+ 
+ // Development-only fixtures. Replace with active Neon inventory before launch.
+-export const elphinoProducts: ElphinoProduct[] = [
+-  { id: "dev-polo-01", name: "Elphino Sage Line Polo", category: "Polos", style: "Minimal", price: 20, colors: ["Sage"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.sagePolo, status: "NEW", inStock: true, createdRank: 9 },
+-  { id: "dev-polo-02", name: "Elphino Lavender Block Polo", category: "Polos", style: "Colorblock", price: 22, colors: ["Lavender", "Teal"], sizes: ["M", "L", "XL"], fit: "Slim", image: productImages.lavenderPolo, inStock: true, createdRank: 5 },
++const baseElphinoProducts: ElphinoProduct[] = [
++  { id: "dev-polo-01", name: "Elphino Motion Arc Polo", category: "Polos", style: "Designer", price: 24, colors: ["Cobalt", "Navy", "Cream", "Charcoal"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo01, colorImages: { Cobalt: productImages.youthPolo01, Navy: "/images/elphino/polos/youth-v1/variants/polo-01/navy.png", Cream: "/images/elphino/polos/youth-v1/variants/polo-01/cream.png", Charcoal: "/images/elphino/polos/youth-v1/variants/polo-01/charcoal.png" }, poloDesign: "beach", designConcept: "Motion Concept", designTechnique: "Thread Work", status: "NEW", inStock: true, createdRank: 18 },
++  { id: "dev-polo-02", name: "Elphino Pixel Rush Polo", category: "Polos", style: "Designer", price: 24, colors: ["Charcoal", "Navy", "Cobalt", "Cream"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo02, colorImages: { Charcoal: productImages.youthPolo02, Navy: "/images/elphino/polos/youth-v1/variants/polo-02/navy.png", Cobalt: "/images/elphino/polos/youth-v1/variants/polo-02/cobalt.png", Cream: "/images/elphino/polos/youth-v1/variants/polo-02/cream.png" }, poloDesign: "city", designConcept: "Digital Energy", designTechnique: "Embroidery", status: "NEW", inStock: true, createdRank: 17 },
++  { id: "dev-polo-03", name: "Elphino Brush Voltage Polo", category: "Polos", style: "Printed", price: 23, colors: ["Cream", "Cobalt", "Charcoal", "Sky Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo03, colorImages: { Cream: productImages.youthPolo03, Cobalt: "/images/elphino/polos/youth-v1/variants/polo-03/cobalt.png", Charcoal: "/images/elphino/polos/youth-v1/variants/polo-03/charcoal.png", "Sky Blue": "/images/elphino/polos/youth-v1/variants/polo-03/sky-blue.png" }, poloDesign: "forest", designConcept: "Art Studio Concept", designTechnique: "Screen Print", inStock: true, createdRank: 16 },
++  { id: "dev-polo-04", name: "Elphino Liquid Chrome Polo", category: "Polos", style: "Designer", price: 25, colors: ["Burgundy", "Charcoal", "Navy", "Rust"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Slim", image: productImages.youthPolo04, colorImages: { Burgundy: productImages.youthPolo04, Charcoal: "/images/elphino/polos/youth-v1/variants/polo-04/charcoal.png", Navy: "/images/elphino/polos/youth-v1/variants/polo-04/navy.png", Rust: "/images/elphino/polos/youth-v1/variants/polo-04/rust.png" }, poloDesign: "waterfall", designConcept: "Future Fluid Concept", designTechnique: "Screen Print", status: "LIMITED", inStock: true, createdRank: 15 },
++  { id: "dev-polo-05", name: "Elphino Solar Orbit Polo", category: "Polos", style: "Designer", price: 23, colors: ["Butter Yellow", "Cream", "Sage", "Sky Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo05, colorImages: { "Butter Yellow": productImages.youthPolo05, Cream: "/images/elphino/polos/youth-v1/variants/polo-05/cream.png", Sage: "/images/elphino/polos/youth-v1/variants/polo-05/sage.png", "Sky Blue": "/images/elphino/polos/youth-v1/variants/polo-05/sky-blue.png" }, poloDesign: "ocean", designConcept: "Solar Energy Concept", designTechnique: "Thread Work", inStock: true, createdRank: 14 },
++  { id: "dev-polo-06", name: "Elphino Streamline Polo", category: "Polos", style: "Designer", price: 25, colors: ["Navy", "Charcoal", "Cobalt", "Cream"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo06, colorImages: { Navy: productImages.youthPolo06, Charcoal: "/images/elphino/polos/youth-v1/variants/polo-06/charcoal.png", Cobalt: "/images/elphino/polos/youth-v1/variants/polo-06/cobalt.png", Cream: "/images/elphino/polos/youth-v1/variants/polo-06/cream.png" }, poloDesign: "night-city", designConcept: "Speed Line Concept", designTechnique: "Thread Work", status: "LIMITED", inStock: true, createdRank: 13 },
++  { id: "dev-polo-07", name: "Elphino Signal Script Polo", category: "Polos", style: "Minimal", price: 23, colors: ["Sage", "Cream", "Charcoal", "Sky Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Relaxed", image: productImages.youthPolo07, colorImages: { Sage: productImages.youthPolo07, Cream: "/images/elphino/polos/youth-v1/variants/polo-07/cream.png", Charcoal: "/images/elphino/polos/youth-v1/variants/polo-07/charcoal.png", "Sky Blue": "/images/elphino/polos/youth-v1/variants/polo-07/sky-blue.png" }, poloDesign: "mountain", designConcept: "Signal Concept", designTechnique: "Embroidery", inStock: true, createdRank: 12 },
++  { id: "dev-polo-08", name: "Elphino Shadow Canopy Polo", category: "Polos", style: "Printed", price: 23, colors: ["Forest Green", "Sage", "Charcoal", "Sand"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Relaxed", image: productImages.youthPolo08, colorImages: { "Forest Green": productImages.youthPolo08, Sage: "/images/elphino/polos/youth-v1/variants/polo-08/sage.png", Charcoal: "/images/elphino/polos/youth-v1/variants/polo-08/charcoal.png", Sand: "/images/elphino/polos/youth-v1/variants/polo-08/sand.png" }, poloDesign: "tropical", designConcept: "Urban Nature Concept", designTechnique: "Tonal Print", inStock: true, createdRank: 11 },
++  { id: "dev-polo-09", name: "Elphino Neon District Polo", category: "Polos", style: "Designer", price: 24, colors: ["Charcoal", "Navy", "Burgundy", "Cobalt"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.youthPolo09, colorImages: { Charcoal: productImages.youthPolo09, Navy: "/images/elphino/polos/youth-v1/variants/polo-09/navy.png", Burgundy: "/images/elphino/polos/youth-v1/variants/polo-09/burgundy.png", Cobalt: "/images/elphino/polos/youth-v1/variants/polo-09/cobalt.png" }, poloDesign: "rain", designConcept: "Night City Concept", designTechnique: "Thread Work", inStock: true, createdRank: 10 },
++  { id: "dev-polo-10", name: "Elphino Electric Tide Polo", category: "Polos", style: "Printed", price: 24, colors: ["Sky Blue", "Cobalt", "Cream", "Navy"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Slim", image: productImages.youthPolo10, colorImages: { "Sky Blue": productImages.youthPolo10, Cobalt: "/images/elphino/polos/youth-v1/variants/polo-10/cobalt.png", Cream: "/images/elphino/polos/youth-v1/variants/polo-10/cream.png", Navy: "/images/elphino/polos/youth-v1/variants/polo-10/navy.png" }, poloDesign: "desert", designConcept: "Electric Ocean Concept", designTechnique: "Screen Print", inStock: true, createdRank: 9 },
+   { id: "dev-tee-01", name: "Elphino Offset Form Tee", category: "Round Necks", style: "Graphic", price: 18, colors: ["Cream", "Cobalt"], sizes: ["S", "M", "L", "XL"], fit: "Oversized", image: productImages.creamTee, status: "NEW", inStock: true, createdRank: 8 },
+   { id: "dev-tee-02", name: "Elphino Shoulder Sketch Tee", category: "Round Necks", style: "Minimal", price: 19, colors: ["Cobalt"], sizes: ["S", "M", "L"], fit: "Relaxed", image: productImages.cobaltTee, inStock: false, createdRank: 3 },
+   { id: "dev-shirt-01", name: "Elphino Micro Mark Cotton Shirt", category: "Shirts", style: "Printed", price: 22, colors: ["Butter Yellow"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: productImages.yellowShirt, status: "NEW", inStock: true, createdRank: 7 },
+   { id: "dev-shirt-02", name: "Elphino Sunset Panel Shirt", category: "Shirts", style: "Designer", price: 24, colors: ["Teal", "Coral"], sizes: ["M", "L", "XL"], fit: "Relaxed", image: productImages.tealShirt, inStock: true, createdRank: 2 },
++  { id: "zen-samurai-off-white", name: "Elphino Blossom Ronin Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Off White"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/off-white/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/off-white/back.webp", designConcept: "Zen Samurai · Blossom Ronin", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 55 },
++  { id: "zen-samurai-sand-beige", name: "Elphino Bamboo Wanderer Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Sand Beige"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/sand-beige/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/sand-beige/back.webp", designConcept: "Zen Samurai · Bamboo Wanderer", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 54 },
++  { id: "zen-samurai-dusty-rose", name: "Elphino Crimson Enso Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Dusty Rose"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/dusty-rose/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/dusty-rose/back.webp", designConcept: "Zen Samurai · Crimson Enso", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 53 },
++  { id: "zen-samurai-olive-green", name: "Elphino Silent Brush Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Olive Green"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/olive-green/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/olive-green/back.webp", designConcept: "Zen Samurai · Silent Brush", designTechnique: "Screen Print", inStock: true, createdRank: 52 },
++  { id: "zen-samurai-mustard-yellow", name: "Elphino Torii Sentinel Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Mustard Yellow"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/mustard-yellow/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/mustard-yellow/back.webp", designConcept: "Zen Samurai · Torii Sentinel", designTechnique: "Screen Print", inStock: true, createdRank: 51 },
++  { id: "zen-samurai-terracotta", name: "Elphino Flame Duel Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Terracotta"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/terracotta/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/terracotta/back.webp", designConcept: "Zen Samurai · Flame Duel", designTechnique: "Screen Print", inStock: true, createdRank: 50 },
++  { id: "zen-samurai-teal-blue", name: "Elphino Moonlit Ronin Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Teal Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/teal-blue/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/teal-blue/back.webp", designConcept: "Zen Samurai · Moonlit Ronin", designTechnique: "Screen Print", inStock: true, createdRank: 49 },
++  { id: "zen-samurai-plum-purple", name: "Elphino Stillness Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Plum Purple"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/plum-purple/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/plum-purple/back.webp", designConcept: "Zen Samurai · Stillness", designTechnique: "Screen Print", inStock: true, createdRank: 48 },
++  { id: "zen-samurai-slate-gray", name: "Elphino Mist Warrior Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Slate Gray"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/slate-gray/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/slate-gray/back.webp", designConcept: "Zen Samurai · Mist Warrior", designTechnique: "Screen Print", inStock: true, createdRank: 47 },
++  { id: "zen-samurai-charcoal-black", name: "Elphino Rain Sentinel Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Charcoal Black"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/zen-samurai/charcoal-black/front.webp", backImage: "/assets/elphino/designer-themes/zen-samurai/charcoal-black/back.webp", designConcept: "Zen Samurai · Rain Sentinel", designTechnique: "Screen Print", inStock: true, createdRank: 46 },
++  { id: "geocraft-off-white", name: "Elphino GeoCraft Stag Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Off White"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/off-white/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/off-white/back.webp", designConcept: "GeoCraft · Stag Geometry", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 65 },
++  { id: "geocraft-sand-beige", name: "Elphino GeoCraft Wolf Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Sand Beige"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/sand-beige/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/sand-beige/back.webp", designConcept: "GeoCraft · Wolf Geometry", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 64 },
++  { id: "geocraft-dusty-rose", name: "Elphino GeoCraft Eagle Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Dusty Rose"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/dusty-rose/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/dusty-rose/back.webp", designConcept: "GeoCraft · Eagle Geometry", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 63 },
++  { id: "geocraft-olive-green", name: "Elphino GeoCraft Lion Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Olive Green"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/olive-green/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/olive-green/back.webp", designConcept: "GeoCraft · Lion Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 62 },
++  { id: "geocraft-mustard-yellow", name: "Elphino GeoCraft Elephant Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Mustard Yellow"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/mustard-yellow/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/mustard-yellow/back.webp", designConcept: "GeoCraft · Elephant Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 61 },
++  { id: "geocraft-terracotta", name: "Elphino GeoCraft Tiger Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Terracotta"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/terracotta/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/terracotta/back.webp", designConcept: "GeoCraft · Tiger Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 60 },
++  { id: "geocraft-teal-blue", name: "Elphino GeoCraft Owl Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Teal Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/teal-blue/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/teal-blue/back.webp", designConcept: "GeoCraft · Owl Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 59 },
++  { id: "geocraft-plum-purple", name: "Elphino GeoCraft Summit Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Plum Purple"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/plum-purple/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/plum-purple/back.webp", designConcept: "GeoCraft · Summit Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 58 },
++  { id: "geocraft-slate-gray", name: "Elphino GeoCraft Bull Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Slate Gray"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/slate-gray/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/slate-gray/back.webp", designConcept: "GeoCraft · Bull Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 57 },
++  { id: "geocraft-charcoal-black", name: "Elphino GeoCraft Fox Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Charcoal Black"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/geocraft/charcoal-black/front.webp", backImage: "/assets/elphino/designer-themes/geocraft/charcoal-black/back.webp", designConcept: "GeoCraft · Fox Geometry", designTechnique: "Screen Print", inStock: true, createdRank: 56 },
++  { id: "cosmic-journey-cosmic-black", name: "Elphino Lunar Voyager Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Cosmic Black"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/cosmic-black/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/cosmic-black/back.webp", designConcept: "Cosmic Journey · Lunar Voyager", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 75 },
++  { id: "cosmic-journey-space-navy", name: "Elphino Spiral Galaxy Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Space Navy"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/space-navy/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/space-navy/back.webp", designConcept: "Cosmic Journey · Spiral Galaxy", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 74 },
++  { id: "cosmic-journey-galaxy-purple", name: "Elphino Eclipse Horizon Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Galaxy Purple"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/galaxy-purple/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/galaxy-purple/back.webp", designConcept: "Cosmic Journey · Eclipse Horizon", designTechnique: "Screen Print", status: "NEW", inStock: true, createdRank: 73 },
++  { id: "cosmic-journey-nebula-teal", name: "Elphino Orbital Drift Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Nebula Teal"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/nebula-teal/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/nebula-teal/back.webp", designConcept: "Cosmic Journey · Orbital Drift", designTechnique: "Screen Print", inStock: true, createdRank: 72 },
++  { id: "cosmic-journey-stardust-maroon", name: "Elphino Red Planet Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Stardust Maroon"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/stardust-maroon/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/stardust-maroon/back.webp", designConcept: "Cosmic Journey · Red Planet", designTechnique: "Screen Print", inStock: true, createdRank: 71 },
++  { id: "cosmic-journey-orbit-green", name: "Elphino Forest Signal Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Orbit Green"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/orbit-green/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/orbit-green/back.webp", designConcept: "Cosmic Journey · Forest Signal", designTechnique: "Screen Print", inStock: true, createdRank: 70 },
++  { id: "cosmic-journey-cosmic-gray", name: "Elphino Planetary Orbit Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Cosmic Gray"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/cosmic-gray/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/cosmic-gray/back.webp", designConcept: "Cosmic Journey · Planetary Orbit", designTechnique: "Screen Print", inStock: true, createdRank: 69 },
++  { id: "cosmic-journey-moon-rock-beige", name: "Elphino Launch Sequence Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Moon Rock Beige"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/moon-rock-beige/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/moon-rock-beige/back.webp", designConcept: "Cosmic Journey · Launch Sequence", designTechnique: "Screen Print", inStock: true, createdRank: 68 },
++  { id: "cosmic-journey-supernova-orange", name: "Elphino Event Horizon Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Supernova Orange"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/supernova-orange/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/supernova-orange/back.webp", designConcept: "Cosmic Journey · Event Horizon", designTechnique: "Screen Print", inStock: true, createdRank: 67 },
++  { id: "cosmic-journey-celestial-blue", name: "Elphino Celestial Mirror Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Celestial Blue"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/cosmic-journey/celestial-blue/front.webp", backImage: "/assets/elphino/designer-themes/cosmic-journey/celestial-blue/back.webp", designConcept: "Cosmic Journey · Celestial Mirror", designTechnique: "Screen Print", inStock: true, createdRank: 66 },
++  { id: "hoodie-midnight-link", name: "Elphino Midnight Link Hoodie", category: "Hoodies", style: "Designer", price: 38, colors: ["Charcoal"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/midnight-link/front.webp", backImage: "/assets/elphino/hoodies/midnight-link/back.webp", designConcept: "Midnight City Link", designTechnique: "Thread Work", status: "NEW", inStock: true, createdRank: 30 },
++  { id: "hoodie-botanica-ivory", name: "Elphino Botanica Ivory Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Cream"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/botanica-ivory/front.webp", backImage: "/assets/elphino/hoodies/botanica-ivory/back.webp", designConcept: "Botanica Ivory", designTechnique: "Embroidery", status: "NEW", inStock: true, createdRank: 44 },
++  { id: "hoodie-alpine-moon", name: "Elphino Alpine Moon Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Navy"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/alpine-moon/front.webp", backImage: "/assets/elphino/hoodies/alpine-moon/back.webp", designConcept: "Alpine Moon", designTechnique: "Thread Work", status: "NEW", inStock: true, createdRank: 43 },
++  { id: "hoodie-pinelands-path", name: "Elphino Pinelands Path Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Forest Green"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/pinelands-path/front.webp", backImage: "/assets/elphino/hoodies/pinelands-path/back.webp", designConcept: "Pinelands Path", designTechnique: "Embroidery", inStock: true, createdRank: 42 },
++  { id: "hoodie-harborlight", name: "Elphino Harborlight Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Rust"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/harborlight/front.webp", backImage: "/assets/elphino/hoodies/harborlight/back.webp", designConcept: "Harborlight", designTechnique: "Embroidery", inStock: true, createdRank: 41 },
++  { id: "hoodie-geo-peak-ivory", name: "Elphino Geo Peak Ivory Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Cream"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/geo-peak-ivory/front.webp", backImage: "/assets/elphino/hoodies/geo-peak-ivory/back.webp", designConcept: "Geo Peak Ivory", designTechnique: "Embroidery", inStock: true, createdRank: 40 },
++  { id: "hoodie-wayfinder", name: "Elphino Wayfinder Hoodie", category: "Hoodies", style: "Designer", price: 39, colors: ["Navy"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/wayfinder/front.webp", backImage: "/assets/elphino/hoodies/wayfinder/back.webp", designConcept: "Wayfinder", designTechnique: "Screen Print", inStock: true, createdRank: 39 },
++  { id: "hoodie-geo-peak-lavender", name: "Elphino Geo Peak Lavender Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Lavender"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/geo-peak-lavender/front.webp", backImage: "/assets/elphino/hoodies/geo-peak-lavender/back.webp", designConcept: "Geo Peak Lavender", designTechnique: "Woven Patch", inStock: true, createdRank: 38 },
++  { id: "hoodie-garden-state", name: "Elphino Garden State Hoodie", category: "Hoodies", style: "Designer", price: 40, colors: ["Mustard"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/garden-state/front.webp", backImage: "/assets/elphino/hoodies/garden-state/back.webp", designConcept: "Garden State", designTechnique: "Woven Patch", inStock: true, createdRank: 37 },
++  { id: "hoodie-zen-samurai", name: "Elphino Zen Samurai Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Charcoal"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/zen-samurai/front.webp", backImage: "/assets/elphino/hoodies/zen-samurai/back.webp", designConcept: "Zen Samurai", designTechnique: "Screen Print", inStock: true, createdRank: 36 },
++  { id: "hoodie-cosmic-night", name: "Elphino Cosmic Night Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Navy"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/cosmic-night/front.webp", backImage: "/assets/elphino/hoodies/cosmic-night/back.webp", designConcept: "Cosmic Night", designTechnique: "Screen Print", inStock: true, createdRank: 35 },
++  { id: "hoodie-urban-legends-olive", name: "Elphino Urban Legends Olive Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Olive"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/urban-legends-olive/front.webp", backImage: "/assets/elphino/hoodies/urban-legends-olive/back.webp", designConcept: "Urban Legends", designTechnique: "Screen Print", inStock: true, createdRank: 34 },
++  { id: "hoodie-urban-legends-mauve", name: "Elphino Urban Legends Mauve Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Mauve"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/urban-legends-mauve/front.webp", backImage: "/assets/elphino/hoodies/urban-legends-mauve/back.webp", designConcept: "Urban Legends", designTechnique: "Screen Print", inStock: true, createdRank: 33 },
++  { id: "hoodie-cosmic-journey-mauve", name: "Elphino Cosmic Journey Mauve Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Mauve"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/cosmic-journey-mauve/front.webp", backImage: "/assets/elphino/hoodies/cosmic-journey-mauve/back.webp", designConcept: "Cosmic Journey", designTechnique: "Screen Print", inStock: true, createdRank: 32 },
++  { id: "hoodie-cosmic-journey-sand", name: "Elphino Cosmic Journey Sand Hoodie", category: "Hoodies", style: "Printed", price: 39, colors: ["Sand"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/hoodies/cosmic-journey-sand/front.webp", backImage: "/assets/elphino/hoodies/cosmic-journey-sand/back.webp", designConcept: "Cosmic Journey", designTechnique: "Screen Print", inStock: true, createdRank: 31 },
+   { id: "dev-hoodie-01", name: "Elphino Contour Cotton Hoodie", category: "Hoodies", style: "Minimal", price: 25, colors: ["Rust"], sizes: ["S", "M", "L", "XL"], fit: "Relaxed", image: productImages.rustHoodie, status: "LIMITED", inStock: true, createdRank: 6 },
+   { id: "dev-jean-01", name: "Elphino Cobalt-Seam Jean", category: "Jeans", style: "Straight", price: 25, colors: ["Ecru"], sizes: ["W28/L30", "W30/L30", "W32/L32", "W34/L32", "W36/L34"], fit: "Regular", image: productImages.ecruJeans, status: "NEW", inStock: true, createdRank: 4 },
+   { id: "dev-trouser-01", name: "Elphino Artisan Stitch Trouser", category: "Trousers", style: "Straight", price: 24, colors: ["Olive"], sizes: ["W28/L30", "W30/L30", "W32/L32", "W34/L32", "W36/L34"], fit: "Regular", image: productImages.oliveTrousers, inStock: true, createdRank: 1 },
+ ];
+ 
+-export const colorHex: Record<string, string> = {
+-  Sage: "#9aa58a", Lavender: "#a991b7", Teal: "#08737a", Cream: "#eee5d3", Cobalt: "#1557c0", "Butter Yellow": "#f4d878", Coral: "#e77866", Rust: "#a8492f", Ecru: "#e8dfcc", Olive: "#68704b",
+-};
++const botanicaProducts: ElphinoProduct[] = [
++  { id: "botanica-brown-earth", name: "Elphino Ancient Fern Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Brown Earth"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/brown-earth/front.webp", backImage: "/assets/elphino/designer-themes/botanica/brown-earth/back.webp", designConcept: "Botanica Collection · Ancient Fern", designTechnique: "Embroidery", status: "NEW", inStock: true, createdRank: 85 },
++  { id: "botanica-bamboo-grove", name: "Elphino Bamboo Grove Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Bamboo Grove"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/bamboo-grove/front.webp", backImage: "/assets/elphino/designer-themes/botanica/bamboo-grove/back.webp", designConcept: "Botanica Collection · Bambusa Vulgaris", designTechnique: "Embroidery", status: "NEW", inStock: true, createdRank: 84 },
++  { id: "botanica-ivory-palm", name: "Elphino Ivory Palm Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Ivory Palm"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/ivory-palm/front.webp", backImage: "/assets/elphino/designer-themes/botanica/ivory-palm/back.webp", designConcept: "Botanica Collection · Corypha Umbraculifera", designTechnique: "Embroidery", status: "NEW", inStock: true, createdRank: 83 },
++  { id: "botanica-slate-agave", name: "Elphino Slate Agave Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Slate Agave"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/slate-agave/front.webp", backImage: "/assets/elphino/designer-themes/botanica/slate-agave/back.webp", designConcept: "Botanica Collection · Agave Americana", designTechnique: "Embroidery", inStock: true, createdRank: 82 },
++  { id: "botanica-plum-thorne", name: "Elphino Plum Thorne Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Plum Thorne"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/plum-thorne/front.webp", backImage: "/assets/elphino/designer-themes/botanica/plum-thorne/back.webp", designConcept: "Botanica Collection · Euphorbia Tirucalli", designTechnique: "Embroidery", inStock: true, createdRank: 81 },
++  { id: "botanica-deep-sea", name: "Elphino Deep Sea Coral Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Deep Sea"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/deep-sea/front.webp", backImage: "/assets/elphino/designer-themes/botanica/deep-sea/back.webp", designConcept: "Botanica Collection · Sea Fan Coral Plant", designTechnique: "Embroidery", inStock: true, createdRank: 80 },
++  { id: "botanica-desert-seed", name: "Elphino Desert Seed Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Desert Seed"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/desert-seed/front.webp", backImage: "/assets/elphino/designer-themes/botanica/desert-seed/back.webp", designConcept: "Botanica Collection · Banksia Serrata", designTechnique: "Embroidery", inStock: true, createdRank: 79 },
++  { id: "botanica-graphite-root", name: "Elphino Graphite Root Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Graphite Root"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/graphite-root/front.webp", backImage: "/assets/elphino/designer-themes/botanica/graphite-root/back.webp", designConcept: "Botanica Collection · Driftwood Root System", designTechnique: "Embroidery", inStock: true, createdRank: 78 },
++  { id: "botanica-sage-nepenthes", name: "Elphino Sage Nepenthes Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Sage Nepenthes"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/sage-nepenthes/front.webp", backImage: "/assets/elphino/designer-themes/botanica/sage-nepenthes/back.webp", designConcept: "Botanica Collection · Nepenthes Rajah", designTechnique: "Embroidery", inStock: true, createdRank: 77 },
++  { id: "botanica-golden-ochre", name: "Elphino Golden Ochre Bonsai Tee", category: "Round Necks", style: "Graphic", price: 24, colors: ["Golden Ochre"], sizes: ["S", "M", "L", "XL", "XXL"], fit: "Regular", image: "/assets/elphino/designer-themes/botanica/golden-ochre/front.webp", backImage: "/assets/elphino/designer-themes/botanica/golden-ochre/back.webp", designConcept: "Botanica Collection · Bonsai Juniper", designTechnique: "Embroidery", inStock: true, createdRank: 76 },
++];
++
++const stateRoundNeckProducts: ElphinoProduct[] = stateRoundNeckDesigns.map((design, index) => ({
++  id: `state-round-neck-${design.id}`,
++  name: `Elphino ${design.name} Round Neck`,
++  category: "Round Necks",
++  style: "Graphic",
++  price: design.price,
++  colors: design.colors,
++  sizes: ["S", "M", "L", "XL", "XXL"],
++  fit: "Regular",
++  image: design.image,
++  designConcept: `${design.stateName} · ${design.theme}`,
++  designTechnique: "Screen Print",
++  inStock: true,
++  createdRank: -(index + 1),
++}));
++
++const elphinoBrandPlacement = {
++  front: "Elphino elephant mark · centered below the front neckline",
++  back: "ELPHINO wordmark · centered at the lower back hem",
++} as const;
++
++export const elphinoProducts: ElphinoProduct[] = [...baseElphinoProducts, ...botanicaProducts, ...stateRoundNeckProducts].map((product) => ({
++  ...product,
++  brandPlacement: elphinoBrandPlacement,
++}));
+diff --git a/src/services/catalog.ts b/src/services/catalog.ts
+index 99eb831..25d7396 100644
+--- a/src/services/catalog.ts
++++ b/src/services/catalog.ts
+@@ -2,43 +2,17 @@ import "server-only";
+ 
+ import { db } from "@/lib/db";
+ import type { StorefrontProductDto } from "./types";
++import type { Category, Inventory, Product, ProductImage, ProductVariant } from "@prisma/client";
+ 
+-export async function getActiveElphinoProductIds(): Promise<string[]> {
+-  const products = await db.product.findMany({
+-    where: {
+-      isActive: true,
+-      brand: { slug: "elphino" },
+-    },
+-    select: { id: true },
+-    orderBy: { createdAt: "asc" },
+-  });
+-
+-  return products.map((product) => product.id);
+-}
++type ProductWithRelations = Product & {
++  category: Category;
++  images: ProductImage[];
++  variants: (ProductVariant & {
++    inventory: Inventory | null;
++  })[];
++};
+ 
+-export async function getElphinoProductById(id: string): Promise<StorefrontProductDto | null> {
+-  const product = await db.product.findUnique({
+-    where: {
+-      id,
+-      isActive: true,
+-      brand: { slug: "elphino" },
+-    },
+-    include: {
+-      category: true,
+-      images: {
+-        orderBy: { position: "asc" },
+-      },
+-      variants: {
+-        where: { isActive: true },
+-        include: { inventory: true },
+-        orderBy: { createdAt: "asc" },
+-      },
+-    },
+-  });
+-
+-  if (!product) return null;
+-
+-  // Process Images
++function mapProductToStorefrontDto(product: ProductWithRelations): StorefrontProductDto {
+   let defaultImage = "";
+   let backImage: string | undefined = undefined;
+   const colorImages: Record<string, string> = {};
+@@ -80,6 +54,8 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
+     };
+   });
+ 
++  const badge = (product.badge as "NEW" | "LIMITED") ?? undefined;
++
+   return {
+     id: product.id,
+     name: product.name,
+@@ -88,7 +64,11 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
+     category: product.category.name,
+     style: product.style ?? "Standard",
+     fit: product.fit ?? "Regular",
+-    badge: (product.badge as "NEW" | "LIMITED") ?? undefined,
++    badge,
++    status: badge,
++    createdRank: product.createdRank,
++    isFeatured: product.isFeatured,
++    isNewArrival: product.isNewArrival,
+     designConcept: product.designConcept ?? undefined,
+     designTechnique: product.designTechnique ?? undefined,
+     designKey: product.designKey ?? undefined,
+@@ -103,3 +83,64 @@ export async function getElphinoProductById(id: string): Promise<StorefrontProdu
+     variants,
+   };
+ }
++
++export async function getActiveElphinoProductIds(): Promise<string[]> {
++  const products = await db.product.findMany({
++    where: {
++      isActive: true,
++      brand: { slug: "elphino" },
++    },
++    select: { id: true },
++    orderBy: { createdAt: "asc" },
++  });
++
++  return products.map((product) => product.id);
++}
++
++export async function getElphinoProductById(id: string): Promise<StorefrontProductDto | null> {
++  const product = await db.product.findUnique({
++    where: {
++      id,
++      isActive: true,
++      brand: { slug: "elphino" },
++    },
++    include: {
++      category: true,
++      images: {
++        orderBy: { position: "asc" },
++      },
++      variants: {
++        where: { isActive: true },
++        include: { inventory: true },
++        orderBy: { createdAt: "asc" },
++      },
++    },
++  });
++
++  if (!product) return null;
++
++  return mapProductToStorefrontDto(product);
++}
++
++export async function getElphinoCatalogProducts(): Promise<StorefrontProductDto[]> {
++  const products = await db.product.findMany({
++    where: {
++      isActive: true,
++      brand: { slug: "elphino" },
++    },
++    include: {
++      category: true,
++      images: {
++        orderBy: { position: "asc" },
++      },
++      variants: {
++        where: { isActive: true },
++        include: { inventory: true },
++        orderBy: { createdAt: "asc" },
++      },
++    },
++    orderBy: { createdAt: "asc" },
++  });
++
++  return products.map(mapProductToStorefrontDto);
++}
+diff --git a/src/services/types.ts b/src/services/types.ts
+index c717c39..b3debf5 100644
+--- a/src/services/types.ts
++++ b/src/services/types.ts
+@@ -7,6 +7,10 @@ export type StorefrontProductDto = {
+   style: string;
+   fit: string;
+   badge?: "NEW" | "LIMITED";
++  status?: "NEW" | "LIMITED";
++  createdRank: number;
++  isFeatured?: boolean;
++  isNewArrival?: boolean;
+   designConcept?: string;
+   designTechnique?: string;
+   designKey?: string;

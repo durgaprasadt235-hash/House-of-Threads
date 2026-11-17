@@ -1,9 +1,9 @@
-# House of Threads architecture
+# The Outfit Co. architecture
 
 ## System shape
 
 ```text
-House of Threads (one Next.js application)
+The Outfit Co. (one Next.js application)
 ├── Elphino (Brand)
 ├── The Walker Company (Brand)
 ├── Shared commerce

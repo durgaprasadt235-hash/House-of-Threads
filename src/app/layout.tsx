@@ -19,8 +19,8 @@ const editorialSerif = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: { default: "House of Threads", template: "%s | House of Threads" },
-  description: "Every thread, stitched for you to feel like you. Discover Elphino and The Walker Company.",
+  title: { default: "The Outfit Co.", template: "%s | The Outfit Co." },
+  description: "Everyday & Beyond. Discover Elphino and The Walker Company.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

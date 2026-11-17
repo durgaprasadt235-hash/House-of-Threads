@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -40,10 +41,10 @@ export function Hero() {
       <div className="hero-center relative z-10 mx-auto flex max-w-[720px] flex-col items-center px-5 pb-11 pt-10 text-center sm:px-8 sm:pt-14 lg:min-h-[688px] lg:max-w-[650px] lg:justify-center lg:px-8 lg:pb-10 lg:pt-8 xl:max-w-[720px]">
         <div className="hero-identity flex flex-col items-center">
           <Monogram compact />
-          <p className="mt-2 font-serif text-[15px] uppercase tracking-[0.35em] text-white/90 sm:text-lg lg:text-xl xl:text-[1.35rem]">House of Threads</p>
+          <p className="mt-2 font-serif text-[15px] uppercase tracking-[0.35em] text-white/90 sm:text-lg lg:text-xl xl:text-[1.35rem]">The Outfit Co.</p>
           <span className="gold-stitch mt-5 h-px w-16 bg-[#d5a25d]" />
         </div>
-        <h1 className="hero-title mt-7 text-balance font-serif text-[clamp(2.7rem,11vw,4.6rem)] leading-[0.98] tracking-[-0.025em] text-[#fffdfa] sm:max-w-[680px] lg:mt-6 lg:text-[clamp(3.5rem,4.6vw,5rem)] xl:leading-[0.95]" id="hero-heading">Every Thread,<br />Stitched for You to<br />Feel Like You.</h1>
+        <h1 className="hero-title mt-7 text-balance font-serif text-[clamp(2.7rem,11vw,4.6rem)] leading-[0.98] tracking-[-0.025em] text-[#fffdfa] sm:max-w-[680px] lg:mt-6 lg:text-[clamp(3.5rem,4.6vw,5rem)] xl:leading-[0.95]" id="hero-heading">Everyday<br />& Beyond.</h1>
         <div aria-hidden="true" className="hero-ornament mt-7 flex items-center gap-5 text-[#d5a25d]"><span className="h-px w-16 bg-[#d5a25d]/80" /><span className="stitch-knot" /><span className="h-px w-16 bg-[#d5a25d]/80" /></div>
         <div className="brand-selectors mt-7 hidden w-full items-stretch lg:flex" id="brands">
           <BrandPanel brand="elphino" cta="Explore Elphino" statement="Creative. Expressive. Fearless." />
@@ -62,6 +63,7 @@ export function Hero() {
 
 function MobileBrand({ alt, brand, image }: { alt: string; brand: "elphino" | "walker"; image: string }) {
   const isElphino = brand === "elphino";
+  const href = isElphino ? "/elphino/collections" : "/walker";
   return (
     <article className="relative min-h-[610px] overflow-hidden border-t border-white/10" id={brand}>
       <Image alt={alt} className={`object-cover ${isElphino ? "object-[42%_center]" : "object-[56%_center]"}`} fill sizes="100vw" src={image} />
@@ -69,7 +71,7 @@ function MobileBrand({ alt, brand, image }: { alt: string; brand: "elphino" | "w
       <div className="absolute inset-x-0 bottom-0 p-7 pb-9 text-center">
         <BrandLogo brand={brand} />
         <p className="mt-2 text-sm tracking-wide text-white/80">{isElphino ? "Creative. Expressive. Fearless." : "Clean. Classic. Confident."}</p>
-        <a className="group mt-5 inline-flex min-h-12 items-center gap-3 border border-[#d5a25d] px-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#e5b979]" href={`#${brand}`}>Explore {isElphino ? "Elphino" : "Walker"}<ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-1" /></a>
+        <Link className="group mt-5 inline-flex min-h-12 items-center gap-3 border border-[#d5a25d] px-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#e5b979]" href={href}>Explore {isElphino ? "Elphino" : "Walker"}<ArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 group-hover:translate-x-1" /></Link>
       </div>
     </article>
   );

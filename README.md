@@ -1,6 +1,6 @@
-# House of Threads
+# The Outfit Co.
 
-House of Threads is one multi-brand commerce platform for **Elphino** and **The Walker Company**. Both brands share customer accounts, cart, checkout, orders, payments, inventory, rewards, administration, and analytics.
+The Outfit Co. is one multi-brand commerce platform for **Elphino** and **The Walker Company**. Both brands share customer accounts, cart, checkout, orders, payments, inventory, rewards, administration, and analytics.
 
 Phases 1 and 2 establish the application and database foundation. Storefront, authentication, checkout, admin, and loyalty features intentionally remain for later phases.
 

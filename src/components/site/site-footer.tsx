@@ -18,7 +18,7 @@ export function SiteFooter() {
           {groups.map((group) => <div key={group.title}><h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white">{group.title}</h2><ul className="mt-4 space-y-2 text-xs">{group.links.map((link) => <li key={link}><Link className="transition-colors hover:text-[#e9b85f]" href="#">{link}</Link></li>)}</ul></div>)}
         </div>
       </div>
-      <div className="mx-auto mt-10 flex max-w-[1500px] items-center justify-between border-t border-white/10 pt-6 text-[10px] uppercase tracking-[0.18em]"><span>© 2026 House of Threads</span><Link className="transition-colors hover:text-[#e9b85f]" href="#">Instagram</Link></div>
+      <div className="mx-auto mt-10 flex max-w-[1500px] items-center justify-between border-t border-white/10 pt-6 text-[10px] uppercase tracking-[0.18em]"><span>© 2026 The Outfit Co.</span><Link className="transition-colors hover:text-[#e9b85f]" href="#">Instagram</Link></div>
     </footer>
   );
 }

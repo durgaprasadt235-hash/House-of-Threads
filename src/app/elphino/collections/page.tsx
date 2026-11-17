@@ -27,7 +27,7 @@ export default async function ElphinoCollectionsPage({ searchParams }: PageProps
         <div className="absolute inset-0 bg-black/20 sm:bg-[radial-gradient(ellipse_at_center,rgba(6,7,7,.94)_0%,rgba(6,7,7,.86)_30%,rgba(6,7,7,.18)_75%)]" />
         <div aria-hidden="true" className="elphino-thread absolute left-[12%] right-[10%] top-[64%] h-px bg-gradient-to-r from-[#23c4cb] via-[#e23a82] to-[#e9b85f]" />
         <div className="relative z-10 mx-auto flex min-h-[682px] max-w-3xl flex-col items-center justify-center px-6 py-16 text-center lg:min-h-[728px]">
-          <p className="elphino-reveal text-[10px] font-semibold uppercase tracking-[0.28em] text-[#e9b85f]">House of Threads presents</p>
+          <p className="elphino-reveal text-[10px] font-semibold uppercase tracking-[0.28em] text-[#e9b85f]">The Outfit Co. presents</p>
           <div className="elphino-reveal mt-5 [animation-delay:120ms]"><BrandLogo brand="elphino" compact /></div>
           <p className="elphino-reveal mt-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-[#23c4cb] [animation-delay:220ms]">Elphino Collections</p>
           <h1 className="elphino-reveal mt-6 max-w-3xl font-serif text-[clamp(3.2rem,8vw,6.8rem)] leading-[0.86] tracking-[-0.045em] [animation-delay:300ms]" id="collections-heading">Find What<br />Feels Like You.</h1>
