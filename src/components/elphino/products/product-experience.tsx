@@ -3,12 +3,14 @@
 import { ArrowLeft, Camera, Check, ChevronLeft, ChevronRight, Heart, ImagePlus, LockKeyhole, Maximize2, RotateCcw, Shirt, Sparkles, Upload, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent, type PointerEvent } from "react";
 
 import { colorHex } from "@/data/elphino-constants";
 import type { StorefrontProductDto } from "@/services/types";
 
 export function ProductExperience({ product }: { product: StorefrontProductDto }) {
+  const router = useRouter();
   const [size, setSize] = useState("");
   const [color, setColor] = useState(product.colors[0] ?? "");
   const [tryOnOpen, setTryOnOpen] = useState(false);
@@ -17,7 +19,7 @@ export function ProductExperience({ product }: { product: StorefrontProductDto }
   return (
     <section className="px-5 pb-20 pt-[106px] sm:px-8 lg:px-12 lg:pb-28 lg:pt-[132px]">
       <div className="mx-auto max-w-[1450px]">
-        <Link className="inline-flex min-h-11 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.17em]" href="/elphino/collections"><ArrowLeft className="size-4" /> Back to collections</Link>
+        <button className="inline-flex min-h-11 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.17em]" onClick={() => router.back()}><ArrowLeft className="size-4" /> Back to collections</button>
         <div className="mt-5 grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,.85fr)] lg:gap-14">
           <ZoomProductImage color={color} product={product} />
           <div className="lg:pt-3">
