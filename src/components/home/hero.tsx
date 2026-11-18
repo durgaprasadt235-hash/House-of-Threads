@@ -54,8 +54,17 @@ export function Hero() {
       </div>
 
       <div className="relative z-10 lg:hidden">
-        <MobileBrand alt="Man wearing expressive black graphic menswear in an urban setting" brand="elphino" image="/images/home/elphino-hero.png" />
-        <MobileBrand alt="Man wearing refined taupe smart-casual menswear beside modern architecture" brand="walker" image="/images/home/walker-hero.png" />
+        <div className="hero-center max-w-[280px] mx-auto pb-11 pt-10 text-center">
+          <Monogram compact className="mx-auto" />
+          <p className="mt-2 font-serif text-[13px] uppercase tracking-[0.35em] text-white/90 sm:text-lg">The Outfit Co.</p>
+          <h1 className="hero-title mt-4 text-balance font-serif text-[clamp(2rem,6vw,3rem)] leading-[0.96] tracking-[-0.02em] text-[#fffdfa] md:text-lg" id="hero-heading">Everyday<br />& Beyond.</h1>
+          <div aria-hidden="true" className="hero-ornament mt-4 flex items-center gap-3 text-[#d5a25d]"><span className="h-px w-10 bg-[#d5a25d]/80" /><span className="stitch-knot" /><span className="h-px w-10 bg-[#d5a25d]/80" /></div>
+          <div className="brand-selectors w-full flex gap-2">
+            <BrandPanel brand="elphino" cta="Explore Elphino" statement="Creative. Expressive. Fearless." />
+            <span className="w-px self-stretch bg-white/25" />
+            <BrandPanel brand="walker" cta="Explore Walker" statement="Clean. Classic. Confident." />
+          </div>
+        </div>
       </div>
     </section>
   );
