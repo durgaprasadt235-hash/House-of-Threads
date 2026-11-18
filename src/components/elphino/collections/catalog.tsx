@@ -28,7 +28,7 @@ export function CollectionsCatalog({ initialFilters, products }: { initialFilter
     Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
     if (sort !== "featured") params.set("sort", sort);
     const query = params.toString();
-    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+    window.history.pushState(null, "", query ? `?${query}` : window.location.pathname);
   }, [filters, sort]);
 
   useEffect(() => {
