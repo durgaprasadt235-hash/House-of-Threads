@@ -55,7 +55,7 @@ export function Hero() {
 
       <div className="relative z-10 lg:hidden">
         <div className="hero-center max-w-[280px] mx-auto pb-11 pt-10 text-center">
-          <Monogram compact className="mx-auto" />
+          <Monogram compact />
           <p className="mt-2 font-serif text-[13px] uppercase tracking-[0.35em] text-white/90 sm:text-lg">The Outfit Co.</p>
           <h1 className="hero-title mt-4 text-balance font-serif text-[clamp(2rem,6vw,3rem)] leading-[0.96] tracking-[-0.02em] text-[#fffdfa] md:text-lg" id="hero-heading">Everyday<br />& Beyond.</h1>
           <div aria-hidden="true" className="hero-ornament mt-4 flex items-center gap-3 text-[#d5a25d]"><span className="h-px w-10 bg-[#d5a25d]/80" /><span className="stitch-knot" /><span className="h-px w-10 bg-[#d5a25d]/80" /></div>
